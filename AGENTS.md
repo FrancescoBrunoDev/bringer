@@ -66,13 +66,16 @@ Style guidelines (applies to C++/Arduino code)
 
 - File layout & names
   - Use lower_snake for filenames: `module_name.cpp`, `module_name.h` (current repo follows this: `server.cpp`, `ui.cpp`).
-  - Public headers live next to their implementation in `src/epaper_monitor/...`.
+  - Public headers live next to their implementation under `src/` and are organized by role:
+    - `src/drivers/...` for hardware drivers (e.g. `src/drivers/epaper/display.h`, `src/drivers/oled/oled.h`)
+    - `src/app/...` for application logic (e.g. `src/app/server/server.h`, `src/app/ui/ui.h`)
+    - `src/utils/...` for small helper libraries (e.g. `src/utils/base64.h`)
 
 - Includes ordering
   - Project-local headers first, grouped by module, then third‑party libs, then system headers. Example:
 
-    #include "epaper_monitor/display/display.h"
-    #include "epaper_monitor/wifi.h"
+    #include "drivers/epaper/display.h"
+    #include "app/wifi/wifi.h"
     #include <ArduinoJson.h>
     #include <Arduino.h>
 
@@ -139,7 +142,7 @@ Where to look
 -
 - Main example PlatformIO file: `platformio.ini`
 - Main application entry: `src/main.ino`
-- Core modules: `src/epaper_monitor/{display,server,oled,ui,controls,wifi}`
+- Core modules: `src/drivers/{epaper,oled}`, `src/app/{server,ui,controls,wifi}`, `src/utils` and `src/config.h`
 
 Next steps agents commonly take
 -

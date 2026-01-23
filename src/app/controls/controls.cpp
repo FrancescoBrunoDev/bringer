@@ -10,9 +10,9 @@
  * Buttons are expected to be wired active-low: button connects the GPIO to GND when pressed.
  */
 
-#include "epaper_monitor/controls/controls.h"
-#include "epaper_monitor/display/display.h"
-#include "epaper_monitor/oled/oled.h"
+#include "controls.h"
+#include "drivers/epaper/display.h"
+#include "drivers/oled/oled.h"
 
 #include <Arduino.h>
 

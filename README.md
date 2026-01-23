@@ -24,16 +24,16 @@ bringer/examples/esp32c6-oled-menu
 Code layout
 -----------
 
-- `src/epaper_monitor/` — refactored source files for the example:
-  - `display/` — display module:
-    - `display.h`, `display.cpp` — display initialization and drawing helpers
-  - `server/` — server module:
-    - `server.h`, `server.cpp` — HTTP server and request handlers
-  - `oled/` — `oled.h`, `oled.cpp` — SSD1306 driver and status helpers
-  - `ui/` — `ui.h`, `ui.cpp` — OLED-driven menu UI (Button A: scroll; Button B: select / long press to go back)
-  - `controls/` — `controls.h`, `controls.cpp` — button/input controls & callbacks
-  - `wifi.{h,cpp}` — WiFi connect / AP fallback helpers
-  - `base64.{h,cpp}` — base64 decoder used by image uploads
+- `src/` — source files organized into:
+  - `drivers/` — hardware drivers:
+    - `epaper/` — `display.h`, `display.cpp` — e-paper driver and helpers
+    - `oled/` — `oled.h`, `oled.cpp` — SSD1306 driver and status helpers
+  - `app/` — application code:
+    - `server/` — `server.h`, `server.cpp` — HTTP server and request handlers
+    - `ui/` — `ui.h`, `ui.cpp` — OLED-driven menu UI (Button A: scroll; Button B: select / long press)
+    - `controls/` — `controls.h`, `controls.cpp` — button/input controls & callbacks
+    - `wifi/` — `wifi.h`, `wifi.cpp` — WiFi connect / AP fallback helpers
+  - `utils/` — `base64.h`, `base64.cpp` — base64 decoder used by image uploads
   - `config.h` — pins and behavior flags
   - `main.ino` — minimal bootstrap that wires modules together
 

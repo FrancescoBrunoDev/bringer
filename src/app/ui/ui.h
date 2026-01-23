@@ -14,7 +14,7 @@
  *  - Full cleaning (avvia una pulizia completa / recovery clear)
  *
  * L'implementazione registra le callback sui pulsanti (attraverso il modulo
- * `controls`) e aggiorna l'OLED tramite le funzioni in `epaper_monitor/oled`.
+ * `controls`) e aggiorna l'OLED tramite le funzioni in `drivers/oled`.
  */
 
 #include <Arduino.h>

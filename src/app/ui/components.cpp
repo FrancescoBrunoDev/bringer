@@ -1,8 +1,8 @@
 // Minimal UI components implementation
-#include "epaper_monitor/ui/components.h"
-#include "epaper_monitor/oled/oled.h"
-#include "epaper_monitor/wifi.h"
-#include "epaper_monitor/display/display.h"
+#include "components.h"
+#include "drivers/oled/oled.h"
+#include "app/wifi/wifi.h"
+#include "drivers/epaper/display.h"
 
 #include <time.h>
 

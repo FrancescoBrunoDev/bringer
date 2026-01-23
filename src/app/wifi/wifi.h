@@ -1,7 +1,7 @@
 #pragma once
 
 /*
- * epaper_monitor/wifi.h
+ * app/wifi/wifi.h
  *
  * Small WiFi helper API for the ESP32 e-paper example.
  *

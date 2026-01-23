@@ -13,7 +13,7 @@
       - oled_showProgress(msg, cur, total)
 */
 
-#include "epaper_monitor/oled/oled.h"
+#include "drivers/oled/oled.h"
 
 #include <Wire.h>
 #include <Adafruit_GFX.h>

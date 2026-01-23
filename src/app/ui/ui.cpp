@@ -16,11 +16,11 @@
  * The module registers callbacks on the controls module and uses the oled & display APIs.
  */
 
-#include "epaper_monitor/ui/ui.h"
-#include "epaper_monitor/oled/oled.h"
-#include "epaper_monitor/controls/controls.h"
-#include "epaper_monitor/display/display.h"
-#include "epaper_monitor/wifi.h"
+#include "ui.h"
+#include "drivers/oled/oled.h"
+#include "app/controls/controls.h"
+#include "drivers/epaper/display.h"
+#include "app/wifi/wifi.h"
 
 #include <Arduino.h>
 #include <stdio.h>
@@ -32,8 +32,8 @@
 enum SettingsItem : uint8_t { SET_IP = 0, SET_PARTIAL, SET_FULL_CLEAN, SET_COUNT };
 
 // Views and components are implemented in separate files to keep UI maintainable.
-#include "epaper_monitor/ui/components.h"
-#include "epaper_monitor/ui/views.h"
+#include "components.h"
+#include "views.h"
 
 // Forward view handlers and renderers (small, kept local)
 static void view_home_render(void);

@@ -1,7 +1,7 @@
 #pragma once
 
 /*
- * epaper_monitor/display.h
+ * drivers/epaper/display.h
  *
  * Public API for controlling the e-paper display used by the example.
  *

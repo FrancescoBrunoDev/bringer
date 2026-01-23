@@ -10,9 +10,9 @@
 */
 
 #include "display.h"
-#include "epaper_monitor/config.h"
-#include "epaper_monitor/base64.h" // only included for completeness; not used directly here
-#include "epaper_monitor/oled/oled.h"
+#include "config.h"
+#include "utils/base64.h" // only included for completeness; not used directly here
+#include "drivers/oled/oled.h"
 
 #include <SPI.h>
 #include <GxEPD2_3C.h>

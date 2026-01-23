@@ -13,12 +13,12 @@
 */
 
 #include "server.h"
-#include "epaper_monitor/display/display.h"
-#include "epaper_monitor/wifi.h"
-#include "epaper_monitor/base64.h"
-#include "epaper_monitor/ui/ui.h"
-#include "epaper_monitor/controls/controls.h"
-#include "epaper_monitor/config.h"
+#include "drivers/epaper/display.h"
+#include "app/wifi/wifi.h"
+#include "utils/base64.h"
+#include "app/ui/ui.h"
+#include "app/controls/controls.h"
+#include "config.h"
 
 #include <WebServer.h>
 #include <ArduinoJson.h>

@@ -4,10 +4,10 @@
 #include <GxEPD2_3C.h>
 
 #include "secrets.h"
-#include "epaper_monitor/config.h"
-#include "epaper_monitor/display/display.h"
-#include "epaper_monitor/wifi.h"
-#include "epaper_monitor/server/server.h"
+#include "config.h"
+#include "drivers/epaper/display.h"
+#include "app/wifi/wifi.h"
+#include "app/server/server.h"
 
 /*
   Minimal main.ino after refactor
@@ -15,10 +15,10 @@
   - Keeps loop() minimal: delegate request handling to the server module
 */
 
-// Buttons handled in controls module (src/epaper_monitor/controls)
+// Buttons handled in controls module (src/app/controls)
 // Defaults: clear=12, toggle=13
-#include "epaper_monitor/controls/controls.h"
-#include "epaper_monitor/ui/ui.h"
+#include "app/controls/controls.h"
+#include "app/ui/ui.h"
 
 void setup() {
   Serial.begin(115200);
