@@ -41,6 +41,8 @@ void ui_back(void);
 // Introspection helpers for the web UI
 int ui_getState(void);
 int ui_getIndex(void);
+// Restituisce true se l'UI è attualmente nella schermata interna del Text App
+bool ui_isInApp(void);
 
 #ifdef __cplusplus
 } // extern "C"

@@ -26,6 +26,8 @@ Each plane is width*height bits, MSB-first, row-major, padded on the last byte a
 
 The script can save a small preview file (png) showing how the converter sees the image:
   --preview preview.png
+
+Note: input images are center-cropped to match the requested target size (no stretching). The crop is centered to preserve composition; use `--preview` to verify how the image maps to the panel.
 """
 
 import argparse
@@ -37,7 +39,7 @@ from io import BytesIO
 import requests
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageOps
 except Exception as e:
     print("Missing Pillow: pip install pillow")
     raise
@@ -85,7 +87,11 @@ def image_to_1bit_planes(
     - For 'bw': returns (bw_bytes,)
     - For '3c': returns (black_bytes, red_bytes)
     """
-    im_rgb = img.convert("RGB").resize((width, height), Image.LANCZOS)
+    # Use a centered crop to match the target aspect ratio, then resize.
+    # This prevents stretching: the image is cropped (center) and fitted to the target.
+    im_rgb = ImageOps.fit(
+        img.convert("RGB"), (width, height), Image.LANCZOS, centering=(0.5, 0.5)
+    )
 
     pix = im_rgb.load()
 

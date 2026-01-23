@@ -21,6 +21,8 @@
 #include "app/controls/controls.h"
 #include "drivers/epaper/display.h"
 #include "app/wifi/wifi.h"
+#include "app/routes/text_app/text_app.h"
+#include <GxEPD2_3C.h>
 
 #include <Arduino.h>
 #include <stdio.h>
@@ -40,6 +42,11 @@ static void view_home_render(void);
 static void view_home_next(void);
 static void view_placeholder_render(void);
 static void view_placeholder_next(void);
+static void view_placeholder_select(void);
+static void view_text_menu_render(void);
+static void view_text_menu_next(void);
+static void view_text_menu_select(void);
+static void view_text_menu_back(void);
 static void view_settings_overview_render(void);
 static void view_settings_overview_next(void);
 static void view_settings_overview_select(void);
@@ -50,7 +57,8 @@ static void view_settings_menu_back(void);
 
 // Define the views (externs declared in views.h)
 const View VIEW_HOME = { view_home_render, view_home_next, NULL, NULL, NULL };
-const View VIEW_PLACEHOLDER = { view_placeholder_render, view_placeholder_next, NULL, NULL, NULL };
+const View VIEW_PLACEHOLDER = { view_placeholder_render, view_placeholder_next, view_placeholder_select, NULL, NULL };
+const View VIEW_TEXT_MENU = { view_text_menu_render, view_text_menu_next, view_text_menu_select, view_text_menu_back, NULL };
 const View VIEW_SETTINGS_OVERVIEW = { view_settings_overview_render, view_settings_overview_next, view_settings_overview_select, NULL, NULL };
 const View VIEW_SETTINGS_MENU = { view_settings_menu_render, view_settings_menu_next, view_settings_menu_select, view_settings_menu_back, NULL };
 
@@ -78,8 +86,69 @@ static void ui_redraw(void) {
 static void view_home_render(void) { comp_time_and_wifi(); }
 static void view_home_next(void) { s_currentView = &VIEW_PLACEHOLDER; s_index = 0; ui_redraw(); }
 
-static void view_placeholder_render(void) { comp_title_and_text("Placeholder", ""); }
-static void view_placeholder_next(void) { s_currentView = &VIEW_SETTINGS_OVERVIEW; s_index = 0; ui_redraw(); }
+static void view_placeholder_render(void) {
+  // Overview: show app title only. Select will enter the app menu.
+  comp_title_and_text("Text App", "");
+}
+
+static void view_placeholder_next(void) {
+  // Move to Settings overview (follow original menu order)
+  s_currentView = &VIEW_SETTINGS_OVERVIEW;
+  s_index = 0;
+  ui_redraw();
+}
+
+static void view_placeholder_select(void) {
+  // Enter the Text App menu (nested view)
+  s_currentView = &VIEW_TEXT_MENU;
+  s_index = 0;
+  ui_redraw();
+}
+
+static void view_text_menu_render(void) {
+  const char *txt = text_app_get_text(s_index);
+  if (txt) {
+    comp_title_and_text("Text App", txt);
+  } else {
+    comp_title_and_text("Text App", "(no options)");
+  }
+}
+
+static void view_text_menu_next(void) {
+  size_t count = text_app_get_count();
+  if (count == 0) {
+    ui_redraw();
+    return;
+  }
+  s_index = (s_index + 1) % (uint8_t)count;
+  ui_redraw();
+}
+
+static void view_text_menu_select(void) {
+  const char *txt = text_app_get_text(s_index);
+  if (!txt) {
+    if (oled_isAvailable()) oled_showToast("No options", 1000);
+    return;
+  }
+
+  if (epd_isBusy()) {
+    if (oled_isAvailable()) oled_showToast("EPD busy", 1000);
+    return;
+  }
+
+  if (oled_isAvailable()) oled_showToast("Rendering...", 1200);
+  epd_displayText(String(txt), GxEPD_RED, false);
+  if (oled_isAvailable()) oled_showToast("Done", 800);
+
+  ui_redraw();
+}
+
+static void view_text_menu_back(void) {
+  // Go back to overview (title-only) screen
+  s_currentView = &VIEW_PLACEHOLDER;
+  s_index = 0;
+  ui_redraw();
+}
 
 static void view_settings_overview_render(void) { comp_title_and_text("Settings", ""); }
 static void view_settings_overview_next(void) { s_currentView = &VIEW_HOME; s_index = 0; ui_redraw(); }
@@ -188,12 +257,13 @@ void ui_back(void) {
 
 int ui_getState(void) {
   if (s_currentView == &VIEW_HOME) return 0;
-  if (s_currentView == &VIEW_PLACEHOLDER) return 1;
+  if (s_currentView == &VIEW_PLACEHOLDER || s_currentView == &VIEW_TEXT_MENU) return 1;
   if (s_currentView == &VIEW_SETTINGS_OVERVIEW) return 2;
   if (s_currentView == &VIEW_SETTINGS_MENU) return 3;
   return -1;
 }
 int ui_getIndex(void) { return (int)s_index; }
+bool ui_isInApp(void) { return s_currentView == &VIEW_TEXT_MENU; }
 
 // Periodic UI poll: updates home screen clock and handles NTP init when WiFi connects.
 // Call this frequently from the main loop.

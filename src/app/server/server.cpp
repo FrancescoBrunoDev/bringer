@@ -19,6 +19,7 @@
 #include "app/ui/ui.h"
 #include "app/controls/controls.h"
 #include "config.h"
+#include "app/routes/text_app/text_app.h"
 
 #include <WebServer.h>
 #include <ArduinoJson.h>
@@ -36,7 +37,7 @@ static void handleRoot() {
 
   html += "<div id='menu'><ul style='list-style:none;padding-left:0;'>";
   html += "<li id='m0'>Home</li>";
-  html += "<li id='m1'>Placeholder</li>";
+  html += "<li id='m1'>Text App</li>";
   html += "<li id='m2'>Settings</li>";
   html += "</ul></div>";
 
@@ -45,7 +46,7 @@ static void handleRoot() {
   html += "<p id='ipline'></p>";
   html += "<p><button onclick='postSetting(0)'>IP (noop)</button> <button onclick='postSetting(1)'>Toggle Partial</button> <button onclick='postSetting(2)'>Full Clean</button></p>";
   html += "</div>";
-
+  html += "<div id='appArea' style='display:none;margin-top:12px;'><h3>Text App</h3><div id='textOptions'></div><p><button onclick='enterApp()'>Enter app</button> <button onclick='exitApp()'>Exit app</button></p></div>";
   html += "<p><button onclick='btnNext()'>Next</button> <button onclick='btnSelect()'>Select</button> <button onclick='btnBack()'>Back</button></p>";
   html += "<p><button onclick='doDiag()'>Run diag</button> <span id='diag'></span></p>";
 
@@ -53,6 +54,7 @@ static void handleRoot() {
   html += "<div id='epdBusy' style='display:none;color:#b00;font-weight:bold;margin-top:8px;'>EPD updating...</div>";
 
   html += "<script>\n";
+  html += "var lastState = -1;\n";
   html += "async function refresh(){\n";
   html += "  try{\n";
   html += "    let r=await fetch('/ui_state');\n";
@@ -67,8 +69,30 @@ static void handleRoot() {
   html += "    else if (s==2) document.getElementById('m2').style.fontWeight='bold';\n";
   html += "    if (s==3){ document.getElementById('settingsArea').style.display='block'; refreshSettings(); } else { document.getElementById('settingsArea').style.display='none'; }\n";
   html += "    document.getElementById('epdBusy').style.display = busy ? 'block' : 'none';\n";
+  html += "    // App area handling: show/hide and refresh list when entering state 1\n";
+  html += "    if (s==1) {\n";
+  html += "      document.getElementById('appArea').style.display = 'block';\n";
+  html += "      if (lastState !== 1) loadTextOptions();\n";
+  html += "    } else {\n";
+  html += "      document.getElementById('appArea').style.display = 'none';\n";
+  html += "    }\n";
+  html += "    lastState = s;\n";
   html += "  } catch(e){ console.log(e); }\n";
   html += "}\n";
+  html += "async function loadTextOptions(){\n";
+  html += "  try{\n";
+  html += "    let r = await fetch('/apps/text/list');\n";
+  html += "    let j = await r.json();\n";
+  html += "    let html = '';\n";
+  html += "    for(let i=0;i<j.options.length;i++){\n";
+  html += "      html += '<div style=\"margin-bottom:6px\">' + i + ': ' + j.options[i] + ' <button onclick=\"postSelect('+i+')\">Show</button></div>';\n";
+  html += "    }\n";
+  html += "    document.getElementById('textOptions').innerHTML = html;\n";
+  html += "  } catch(e){ console.log(e); }\n";
+  html += "}\n";
+  html += "function postSelect(i){ fetch('/apps/text/select', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({index:i})}).then(refresh); }\n";
+  html += "function enterApp(){ fetch('/button/select',{method:'POST'}).then(refresh); }\n";
+  html += "function exitApp(){ fetch('/button/back',{method:'POST'}).then(refresh); }\n";
   html += "async function refreshSettings(){ try{ let r=await fetch('/status'); let j=await r.json(); document.getElementById('ipline').innerText = 'IP: ' + j.ip + ' | Partial: ' + (j.partialEnabled ? 'ON' : 'OFF'); }catch(e){console.log(e);} }\n";
   html += "function btnNext(){ fetch('/button/next',{method:'POST'}).then(refresh); }\n";
   html += "function btnSelect(){ fetch('/button/select',{method:'POST'}).then(refresh); }\n";
@@ -240,9 +264,13 @@ void server_init() {
     doc["state"] = ui_getState();
     doc["index"] = ui_getIndex();
     doc["epdBusy"] = epd_isBusy();
+    doc["inApp"] = ui_isInApp();
     String out; serializeJson(doc, out);
     server.send(200, "application/json", out);
   });
+
+  // Register routes provided by apps (e.g. /apps/text/*)
+  text_app_register(&server);
 
   server.begin();
   Serial.println("HTTP server started");
