@@ -60,9 +60,9 @@ secrets.json
 *.pem
 *.key
 *.crt
+src/generated_secrets.h
 # Misc local machine files
 local.settings.json
 .vs/
 # Optional: ignore serial monitor capture files, if you create them locally
 serial.log
-src/generated_secrets.h
