@@ -73,7 +73,7 @@ void oled_init(uint8_t sda, uint8_t scl, uint8_t address) {
   s_oled.display();
 
   s_u8g2.begin(s_oled);
-  s_u8g2.setFont(u8g2_font_profont12_tr);
+  s_u8g2.setFont(u8g2_font_profont11_tr);
   s_u8g2.setForegroundColor(SSD1306_WHITE);
   s_u8g2.setBackgroundColor(SSD1306_BLACK);
 
@@ -111,9 +111,9 @@ static void _drawCenteredText(const char *msg, uint8_t textSize) {
   s_oled.clearDisplay();
   
   if (textSize >= 2) {
-    s_u8g2.setFont(u8g2_font_profont17_tr);
+    s_u8g2.setFont(u8g2_font_profont15_tr);
   } else {
-    s_u8g2.setFont(u8g2_font_profont12_tr);
+    s_u8g2.setFont(u8g2_font_profont11_tr);
   }
 
   int16_t w = s_u8g2.getUTF8Width(msg);
@@ -142,11 +142,14 @@ void oled_showLines(const char *line1, const char *line2, int16_t x_offset, int1
 
   s_u8g2.setFont(u8g2_font_profont11_tr);
   
-  int16_t w1 = s_u8g2.getUTF8Width(line1);
+  String upperL1 = String(line1);
+  upperL1.toUpperCase();
+
+  int16_t w1 = s_u8g2.getUTF8Width(upperL1.c_str());
   int16_t x1 = (OLED_WIDTH - w1) / 2 + x_offset;
   int16_t y1 = 20 + y_offset; 
   s_u8g2.setCursor(x1, y1);
-  s_u8g2.print(line1);
+  s_u8g2.print(upperL1.c_str());
 
   int16_t w2 = s_u8g2.getUTF8Width(line2);
   int16_t x2 = (OLED_WIDTH - w2) / 2 + x_offset;
@@ -189,7 +192,7 @@ void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t x_offset,
   LOCK_OLED();
   if (!s_available) { UNLOCK_OLED(); return; }
   
-  s_u8g2.setFont(u8g2_font_logisoso24_tf); 
+  s_u8g2.setFont(u8g2_font_logisoso20_tf); 
   int16_t w = s_u8g2.getUTF8Width(time);
   int16_t x = (OLED_WIDTH - w) / 2 + x_offset;
   int16_t y = (OLED_HEIGHT / 2) + (s_u8g2.getFontAscent() / 2) + y_offset;
@@ -212,12 +215,17 @@ void oled_drawBigText(const char *text, int16_t x_offset, int16_t y_offset, bool
     LOCK_OLED();
     if (!s_available) { UNLOCK_OLED(); return; }
     
-    // 1. Try single line scaling first (Reduced starting size)
-    s_u8g2.setFont(u8g2_font_logisoso24_tf); 
-    int16_t w = s_u8g2.getUTF8Width(text);
+    // Convert to uppercase
+    String upperText = String(text);
+    upperText.toUpperCase();
+    const char* text_ptr = upperText.c_str();
+
+    // 1. Try single line scaling first (Reduced starting sizes: 24->20, 17->15)
+    s_u8g2.setFont(u8g2_font_logisoso20_tf); 
+    int16_t w = s_u8g2.getUTF8Width(text_ptr);
     if (w > OLED_WIDTH - 4) {
-        s_u8g2.setFont(u8g2_font_profont17_tr);
-        w = s_u8g2.getUTF8Width(text);
+        s_u8g2.setFont(u8g2_font_profont15_tr);
+        w = s_u8g2.getUTF8Width(text_ptr);
     }
 
     if (w <= OLED_WIDTH - 4) {
@@ -227,12 +235,12 @@ void oled_drawBigText(const char *text, int16_t x_offset, int16_t y_offset, bool
         int16_t y = (OLED_HEIGHT / 2) + (h_asc / 2) + y_offset;
         if (y > -44 && y < OLED_HEIGHT + 44) {
             s_u8g2.setCursor(x, y);
-            s_u8g2.print(text);
+            s_u8g2.print(text_ptr);
         }
     } else {
         // Split into two lines
-        s_u8g2.setFont(u8g2_font_profont17_tr);
-        String s = text;
+        s_u8g2.setFont(u8g2_font_profont15_tr);
+        String s = upperText;
         int split = -1;
         int len = s.length();
         int mid = len / 2;
@@ -254,7 +262,7 @@ void oled_drawBigText(const char *text, int16_t x_offset, int16_t y_offset, bool
         
         // Further scaling for lines if they are still too long
         if (w1 > OLED_WIDTH - 4 || w2 > OLED_WIDTH - 4) {
-            s_u8g2.setFont(u8g2_font_profont12_tr);
+            s_u8g2.setFont(u8g2_font_profont11_tr);
             w1 = s_u8g2.getUTF8Width(s1.c_str());
             w2 = s_u8g2.getUTF8Width(s2.c_str());
         }
@@ -286,6 +294,9 @@ void oled_drawHeader(const char *title, int16_t x_offset, int16_t y_offset) {
     LOCK_OLED();
     if (!s_available || !title) { UNLOCK_OLED(); return; }
 
+    String upperTitle = String(title);
+    upperTitle.toUpperCase();
+
     s_u8g2.setFont(u8g2_font_profont10_tr);
     
     // Draw black background bar
@@ -295,7 +306,7 @@ void oled_drawHeader(const char *title, int16_t x_offset, int16_t y_offset) {
     s_u8g2.setForegroundColor(SSD1306_WHITE);
     s_u8g2.setBackgroundColor(SSD1306_BLACK);
     s_u8g2.setCursor(x_offset + 4, y_offset + 10);
-    s_u8g2.print(title);
+    s_u8g2.print(upperTitle);
     
     UNLOCK_OLED();
 }
@@ -319,14 +330,17 @@ void oled_drawToggle(const char *label, bool state, int16_t x_offset, int16_t y_
     if (!s_available) { UNLOCK_OLED(); return; }
 
     // 1. Draw Label
-    s_u8g2.setFont(u8g2_font_profont12_tr);
-    int16_t lw = s_u8g2.getUTF8Width(label);
+    String upperLabel = String(label);
+    upperLabel.toUpperCase();
+
+    s_u8g2.setFont(u8g2_font_profont11_tr);
+    int16_t lw = s_u8g2.getUTF8Width(upperLabel.c_str());
     int16_t lx = (OLED_WIDTH - lw) / 2 + x_offset;
     int16_t ly = (OLED_HEIGHT / 2) - 8 + y_offset;
     
     if (ly > -20 && ly < OLED_HEIGHT + 20) {
         s_u8g2.setCursor(lx, ly);
-        s_u8g2.print(label);
+        s_u8g2.print(upperLabel.c_str());
     }
 
     // 2. Draw Pill Switch
@@ -354,7 +368,7 @@ void oled_drawToggle(const char *label, bool state, int16_t x_offset, int16_t y_
 
 static void _draw_toast_with_offsets(int16_t offset_x, int16_t offset_y) {
   int16_t base_y = (s_toast_pos == TOAST_TOP) ? 4 + offset_y : OLED_HEIGHT - 22 + offset_y;
-  s_u8g2.setFont(u8g2_font_profont12_tr);
+  s_u8g2.setFont(u8g2_font_profont11_tr);
   int16_t text_w = s_toast_msg.length() > 0 ? s_u8g2.getUTF8Width(s_toast_msg.c_str()) : 0;
   int16_t total_w, tx;
   int16_t radius = 9;
