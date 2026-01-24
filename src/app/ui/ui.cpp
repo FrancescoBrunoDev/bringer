@@ -1,82 +1,28 @@
-
 /*
  * ui.cpp
  *
- * Simple menu-driven UI that leverages the SSD1306 OLED for quick navigation.
- *
- * Controls:
- *  - Prev (short): scroll to previous menu item
- *  - Next (short): scroll to next menu item
- *  - Confirm (short): select/activate current item
- *  - Confirm (long): go back / cancel
- *
- * Initial screen: "Settings" with two submenu items:
- *  - Partial update: ON/OFF   (toggles runtime partial updates)
- *  - Full cleaning            (runs recovery full clear on the e-paper)
- *
- * The module registers callbacks on the controls module and uses the oled & display APIs.
+ * Refactored UI using a registry of apps.
+ * Supports a Carousel of Apps and entering them.
  */
 
 #include "ui.h"
+#include "ui_internal.h"
+#include "registry.h"
 #include "drivers/oled/oled.h"
 #include "app/controls/controls.h"
-#include "drivers/epaper/display.h"
 #include "app/wifi/wifi.h"
-#include "app/routes/text_app/text_app.h"
-#include <GxEPD2_3C.h>
+#include "drivers/epaper/display.h"
 
 #include <Arduino.h>
-#include <stdio.h>
 #include <time.h>
 
-// (no toasts) forward declarations not needed
-
-// Settings submenu items
-enum SettingsItem : uint8_t { SET_IP = 0, SET_PARTIAL, SET_FULL_CLEAN, SET_COUNT };
-
-// Views and components are implemented in separate files to keep UI maintainable.
-#include "components.h"
-#include "views.h"
-
-// Forward view handlers and renderers (small, kept local)
-static void view_home_render(void);
-static void view_home_next(void);
-static void view_home_prev(void);
-static void view_placeholder_render(void);
-static void view_placeholder_next(void);
-static void view_placeholder_prev(void);
-static void view_placeholder_select(void);
-static void view_text_menu_render(void);
-static void view_text_menu_next(void);
-static void view_text_menu_prev(void);
-static void view_text_menu_select(void);
-static void view_text_menu_back(void);
-static void view_settings_overview_render(void);
-static void view_settings_overview_next(void);
-static void view_settings_overview_prev(void);
-static void view_settings_overview_select(void);
-static void view_settings_menu_render(void);
-static void view_settings_menu_next(void);
-static void view_settings_menu_prev(void);
-static void view_settings_menu_select(void);
-static void view_settings_menu_back(void);
-
-// Define the views (externs declared in views.h)
-const View VIEW_HOME = { view_home_render, view_home_next, view_home_prev, NULL, NULL, NULL };
-const View VIEW_PLACEHOLDER = { view_placeholder_render, view_placeholder_next, view_placeholder_prev, view_placeholder_select, NULL, NULL };
-const View VIEW_TEXT_MENU = { view_text_menu_render, view_text_menu_next, view_text_menu_prev, view_text_menu_select, view_text_menu_back, NULL };
-const View VIEW_SETTINGS_OVERVIEW = { view_settings_overview_render, view_settings_overview_next, view_settings_overview_prev, view_settings_overview_select, NULL, NULL };
-const View VIEW_SETTINGS_MENU = { view_settings_menu_render, view_settings_menu_next, view_settings_menu_prev, view_settings_menu_select, view_settings_menu_back, NULL };
-
-// Current view pointer and minimal shared state
-static const View *s_currentView = &VIEW_HOME;
-// index used by settings menu
-uint8_t s_index = 0;
+// Current state
+static size_t s_appIndex = 0;           // Index in the app registry (Carousel)
+static const View *s_currentView = NULL; // If non-NULL, we are "inside" an app loop
 static bool s_timeConfigured = false;
-static unsigned long s_lastHomeUpdate = 0;
 
-// Central redraw helper: shows EPD busy indicator or delegates to current view
-static void ui_redraw(void) {
+// Helpers
+void ui_redraw(void) {
   if (epd_isBusy()) {
     if (oled_isAvailable()) {
       oled_showLines("EPD", "Updating...");
@@ -85,248 +31,159 @@ static void ui_redraw(void) {
     }
     return;
   }
-  if (s_currentView && s_currentView->render) s_currentView->render();
-}
 
-// View implementations (small wrappers that use components)
-static void view_home_render(void) { comp_time_and_wifi(); }
-static void view_home_next(void) { s_currentView = &VIEW_PLACEHOLDER; s_index = 0; ui_redraw(); }
-static void view_home_prev(void) { s_currentView = &VIEW_SETTINGS_OVERVIEW; s_index = 0; ui_redraw(); }
+  // If we are inside an app's specific view, render it
+  if (s_currentView && s_currentView->render) {
+    s_currentView->render();
+    return;
+  }
 
-static void view_placeholder_render(void) {
-  // Overview: show app title only. Select will enter the app menu.
-  comp_title_and_text("Text App", "");
-}
-
-static void view_placeholder_next(void) {
-  // Move to Settings overview (follow original menu order)
-  s_currentView = &VIEW_SETTINGS_OVERVIEW;
-  s_index = 0;
-  ui_redraw();
-}
-
-static void view_placeholder_prev(void) {
-  // Move back to Home (reverse of next)
-  s_currentView = &VIEW_HOME;
-  s_index = 0;
-  ui_redraw();
-}
-
-static void view_placeholder_select(void) {
-  // Enter the Text App menu (nested view)
-  s_currentView = &VIEW_TEXT_MENU;
-  s_index = 0;
-  ui_redraw();
-}
-
-static void view_text_menu_render(void) {
-  const char *txt = text_app_get_text(s_index);
-  if (txt) {
-    comp_title_and_text("Text App", txt);
+  // Otherwise, render the current App's preview (Carousel mode)
+  const App** apps = registry_getApps();
+  size_t count = registry_getCount();
+  if (s_appIndex < count && apps[s_appIndex]->renderPreview) {
+      apps[s_appIndex]->renderPreview();
   } else {
-    comp_title_and_text("Text App", "(no options)");
+      oled_showLines("Error", "No App");
   }
 }
 
-static void view_text_menu_next(void) {
-  size_t count = text_app_get_count();
-  if (count == 0) {
+void ui_setView(const View* view) {
+    s_currentView = view;
     ui_redraw();
-    return;
-  }
-  s_index = (s_index + 1) % (uint8_t)count;
-  ui_redraw();
 }
 
-static void view_text_menu_prev(void) {
-  size_t count = text_app_get_count();
-  if (count == 0) {
-    ui_redraw();
-    return;
-  }
-  s_index = (s_index + (uint8_t)count - 1) % (uint8_t)count;
-  ui_redraw();
-}
-
-static void view_text_menu_select(void) {
-  const char *txt = text_app_get_text(s_index);
-  if (!txt) {
-    if (oled_isAvailable()) oled_showToast("No options", 1000);
-    return;
-  }
-
-  if (epd_isBusy()) {
-    if (oled_isAvailable()) oled_showToast("EPD busy", 1000);
-    return;
-  }
-
-  if (oled_isAvailable()) oled_showToast("Rendering...", 1200);
-  epd_displayText(String(txt), GxEPD_RED, false);
-  if (oled_isAvailable()) oled_showToast("Done", 800);
-
-  ui_redraw();
-}
-
-static void view_text_menu_back(void) {
-  // Go back to overview (title-only) screen
-  s_currentView = &VIEW_PLACEHOLDER;
-  s_index = 0;
-  ui_redraw();
-}
-
-static void view_settings_overview_render(void) { comp_title_and_text("Settings", ""); }
-static void view_settings_overview_next(void) { s_currentView = &VIEW_HOME; s_index = 0; ui_redraw(); }
-static void view_settings_overview_prev(void) { s_currentView = &VIEW_PLACEHOLDER; s_index = 0; ui_redraw(); }
-static void view_settings_overview_select(void) { s_currentView = &VIEW_SETTINGS_MENU; s_index = 0; ui_redraw(); }
-
-static void view_settings_menu_render(void) {
-  char buf[40];
-  switch (s_index) {
-    case SET_IP: {
-      IPAddress ip = wifi_getIP();
-      if (ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] == 0) {
-        comp_title_and_text("Settings", "IP: none");
-      } else {
-        snprintf(buf, sizeof(buf), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-        comp_title_and_text("Settings", buf);
-      }
-      break;
+// Navigation Callbacks
+void ui_next(void) {
+    // If inside a view, delegate
+    if (s_currentView) {
+        if (s_currentView->onNext) s_currentView->onNext();
+        return;
     }
-    case SET_PARTIAL:
-      snprintf(buf, sizeof(buf), "Partial: %s", epd_getPartialEnabled() ? "ON" : "OFF");
-      comp_title_and_text("Settings", buf);
-      break;
-    case SET_FULL_CLEAN:
-      comp_title_and_text("Settings", "Full cleaning");
-      break;
-    default:
-      comp_title_and_text("Settings", "");
-      break;
-  }
+
+    // Carousel navigation
+    size_t count = registry_getCount();
+    if (count > 0) {
+        s_appIndex = (s_appIndex + 1) % count;
+        ui_redraw();
+    }
 }
 
-static void view_settings_menu_next(void) { s_index = (s_index + 1) % SET_COUNT; ui_redraw(); }
-static void view_settings_menu_prev(void) { s_index = (s_index + SET_COUNT - 1) % SET_COUNT; ui_redraw(); }
+void ui_prev(void) {
+    // If inside a view, delegate
+    if (s_currentView) {
+        if (s_currentView->onPrev) s_currentView->onPrev();
+        return;
+    }
 
-static void view_settings_menu_select(void) {
-  switch (s_index) {
-    case SET_IP:
-      break;
-    case SET_PARTIAL: {
-      bool cur = epd_getPartialEnabled();
-      epd_setPartialEnabled(!cur);
-      delay(600);
-      break;
+    // Carousel navigation
+    size_t count = registry_getCount();
+    if (count > 0) {
+        s_appIndex = (s_appIndex + count - 1) % count;
+        ui_redraw();
     }
-    case SET_FULL_CLEAN: {
-      if (!epd_forceClear_async()) {
-        if (oled_isAvailable()) oled_showStatus("EPD busy");
-      }
-      break;
-    }
-  }
-  ui_redraw();
 }
 
-static void view_settings_menu_back(void) { s_currentView = &VIEW_SETTINGS_OVERVIEW; s_index = 0; ui_redraw(); }
+void ui_select(void) {
+    // If inside a view, delegate
+    if (s_currentView) {
+        if (s_currentView->onSelect) s_currentView->onSelect();
+        return;
+    }
 
-/* Public API (registered as button callbacks) */
+    // Carousel: Open App
+    const App** apps = registry_getApps();
+    size_t count = registry_getCount();
+    if (s_appIndex < count && apps[s_appIndex]->onSelect) {
+        apps[s_appIndex]->onSelect();
+    }
+}
+
+void ui_back(void) {
+    // If inside a view, delegate
+    if (s_currentView) {
+        if (s_currentView->onBack) {
+            s_currentView->onBack();
+            return;
+        }
+        // Default back: exit to carousel
+        s_currentView = NULL;
+        ui_redraw();
+        return;
+    }
+
+    // Carousel: Reset to Home (App 0) if not already there
+    if (s_appIndex != 0) {
+        s_appIndex = 0;
+        ui_redraw();
+    }
+}
+
+// Initialization and Polling
 void ui_init(void) {
-  // Disable default actions from controls (we handle button behavior here)
   controls_setUseDefaultActions(false);
-
-  // Register navigation callbacks:
   controls_setPrevCallback(ui_prev);
   controls_setNextCallback(ui_next);
   controls_setConfirmCallback(ui_select);
   controls_setConfirmLongCallback(ui_back);
 
-  // Start on the home view
-  s_index = 0;
-  s_currentView = &VIEW_HOME;
+  s_appIndex = 0;
+  s_currentView = NULL;
   s_timeConfigured = false;
-  s_lastHomeUpdate = 0;
 
-  //'oro Reserve the OLED for the menu UI so e-paper status/progress are suppressed.
   oled_setMenuMode(true);
-
-  // Draw home screen initially
   ui_redraw();
 }
 
-void ui_next(void) {
-  // Delegate to current view's onNext handler if present
-  if (s_currentView && s_currentView->onNext) {
-    s_currentView->onNext();
-    return;
-  }
-}
-
-void ui_prev(void) {
-  // Delegate to current view's onPrev handler if present
-  if (s_currentView && s_currentView->onPrev) {
-    s_currentView->onPrev();
-    return;
-  }
-}
-
-void ui_select(void) {
-  // Delegate to current view's onSelect handler if present
-  if (s_currentView && s_currentView->onSelect) {
-    s_currentView->onSelect();
-    return;
-  }
-}
-
-void ui_back(void) {
-  // Delegate to current view's onBack handler if present; fallback to home
-  if (s_currentView && s_currentView->onBack) {
-    s_currentView->onBack();
-    return;
-  }
-  // Default fallback: go to home view
-  s_currentView = &VIEW_HOME;
-  s_index = 0;
-  if (s_currentView && s_currentView->render) s_currentView->render();
-}
-
-int ui_getState(void) {
-  if (s_currentView == &VIEW_HOME) return 0;
-  if (s_currentView == &VIEW_PLACEHOLDER || s_currentView == &VIEW_TEXT_MENU) return 1;
-  if (s_currentView == &VIEW_SETTINGS_OVERVIEW) return 2;
-  if (s_currentView == &VIEW_SETTINGS_MENU) return 3;
-  return -1;
-}
-int ui_getIndex(void) { return (int)s_index; }
-bool ui_isInApp(void) { return s_currentView == &VIEW_TEXT_MENU; }
-
-// Periodic UI poll: updates home screen clock and handles NTP init when WiFi connects.
-// Call this frequently from the main loop.
 void ui_poll(void) {
-  unsigned long now = millis();
-  if ((now - s_lastHomeUpdate) < 1000) return; // update at most once per second
-  s_lastHomeUpdate = now;
-
-  // If WiFi is available and we haven't configured NTP yet, do it once.
+  // NTP Sync Logic
   if (wifi_isConnected() && !s_timeConfigured) {
     configTime(0, 0, "pool.ntp.org", "time.google.com");
     s_timeConfigured = true;
   }
 
-  // Check for toast expiry and redraw UI if needed
   if (oled_poll()) {
-    // If a toast expired, redraw current screen
     ui_redraw();
     return;
   }
 
-  // If we're showing the home view, refresh it (updates the clock).
-  if (s_currentView == &VIEW_HOME) {
-    // throttle updates
-    unsigned long now = millis();
-    if ((now - s_lastHomeUpdate) >= 1000) {
-      s_lastHomeUpdate = now;
-      if (s_currentView && s_currentView->render) s_currentView->render();
-    }
+  // Poll current View or App
+  if (s_currentView) {
+      if (s_currentView->poll) s_currentView->poll();
+  } else {
+      const App** apps = registry_getApps();
+      size_t count = registry_getCount();
+      if (s_appIndex < count && apps[s_appIndex]->poll) {
+          apps[s_appIndex]->poll();
+      }
   }
+}
+
+// Introspection for Web UI
+int ui_getState(void) {
+    // Try to map to old behavior for compatibility
+    // 0: Home, 1: Text, 2: Settings Overview, 3: Settings Menu
+    if (s_appIndex == 0) return 0;
+    if (s_appIndex == 1) return 1; 
+    if (s_appIndex == 2) {
+        if (s_currentView == NULL) return 2;
+        return 3;
+    }
+    return (int)s_appIndex; 
+}
+
+int ui_getIndex(void) {
+    // If inside text app/settings, maybe return internal index?
+    // Since we don't expose internal app state easily, 
+    // we return s_appIndex or 0.
+    // The old code returned s_index which was shared.
+    // This might be a breaking change for introspection if it relied on exact internal index values.
+    // For now, return s_appIndex (Carousel index).
+    return (int)s_appIndex;
+}
+
+bool ui_isInApp(void) {
+    // Old behavior: strictly when viewing text menu
+    // New behavior approximation:
+    return (s_appIndex == 1 && s_currentView != NULL);
 }
