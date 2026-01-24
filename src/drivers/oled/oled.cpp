@@ -179,11 +179,13 @@ void oled_showWiFiIcon(bool connected) {
   LOCK_OLED();
   if (!s_available) { UNLOCK_OLED(); return; }
   s_oled.clearDisplay();
-  int16_t cx = OLED_WIDTH / 2;
-  int16_t cy = OLED_HEIGHT / 2 - 3;
-  s_oled.drawCircle(cx, cy, 6, SSD1306_WHITE);
-  s_oled.fillRect(0, cy + 1, OLED_WIDTH, OLED_HEIGHT - (cy + 1), SSD1306_BLACK);
-  s_oled.fillCircle(cx, cy + 9, 1, SSD1306_WHITE);
+  
+  s_u8g2.setFont(u8g2_font_open_iconic_www_2x_t);
+  int16_t w = 16; // 2x iconic is 16x16
+  int16_t x = (OLED_WIDTH - w) / 2;
+  int16_t y = (OLED_HEIGHT / 2) + 8 - 4; // center vertically
+  
+  s_u8g2.drawGlyph(x, y, connected ? 0x4F : 0x45); // Icon 15 if connected, 5 if not
   s_oled.display();
   UNLOCK_OLED();
 }
@@ -199,12 +201,11 @@ void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t x_offset,
   s_u8g2.setCursor(x, y);
   s_u8g2.print(time);
   
-  int16_t wy_base = 5 + y_offset;
-  int16_t wx_base = 120 + x_offset;
+  int16_t wy_base = 12 + y_offset;
+  int16_t wx_base = 110 + x_offset;
   if (wifiConnected && wy_base > -10 && wy_base < OLED_HEIGHT + 10 && wx_base > -10 && wx_base < OLED_WIDTH + 10) {
-      s_oled.drawCircle(wx_base, wy_base, 4, SSD1306_WHITE);
-      s_oled.fillRect(wx_base - 5, wy_base + 1, 11, 5, SSD1306_BLACK);
-      s_oled.fillCircle(wx_base, wy_base + 3, 1, SSD1306_WHITE);
+      s_u8g2.setFont(u8g2_font_open_iconic_www_1x_t);
+      s_u8g2.drawGlyph(wx_base, wy_base, 0x4F); // Icon 15 (connected)
   } 
 
   if (update) s_oled.display();
@@ -391,12 +392,21 @@ static void _draw_toast_with_offsets(int16_t offset_x, int16_t offset_y) {
   int16_t cy = base_y + radius;
   
   if (s_toast_icon != TOAST_ICON_NONE) {
+      char icon_char = 0;
+      const uint8_t* icon_font = nullptr;
+
       switch(s_toast_icon) {
-          case TOAST_ICON_UP: s_oled.fillTriangle(cx-3, cy+2, cx+3, cy+2, cx, cy-4, SSD1306_BLACK); break;
-          case TOAST_ICON_DOWN: s_oled.fillTriangle(cx-3, cy-2, cx+3, cy-2, cx, cy+4, SSD1306_BLACK); break;
-          case TOAST_ICON_SELECT: s_oled.fillCircle(cx, cy, 3, SSD1306_BLACK); break;
-          case TOAST_ICON_BACK: s_oled.fillTriangle(cx+3, cy-3, cx+3, cy+3, cx-4, cy, SSD1306_BLACK); break;
+          case TOAST_ICON_UP:     icon_char = 0x4F; icon_font = u8g2_font_open_iconic_arrow_1x_t; break; // Icon 15 (up)
+          case TOAST_ICON_DOWN:   icon_char = 0x4C; icon_font = u8g2_font_open_iconic_arrow_1x_t; break; // Icon 12 (down)
+          case TOAST_ICON_BACK:   icon_char = 0x4D; icon_font = u8g2_font_open_iconic_arrow_1x_t; break; // Icon 13 (left)
+          case TOAST_ICON_SELECT: icon_char = 0x41; icon_font = u8g2_font_open_iconic_check_1x_t; break; 
           default: break;
+      }
+
+      if (icon_char && icon_font) {
+          s_u8g2.setFont(icon_font);
+          s_u8g2.drawGlyph(cx - 4, cy + 4, icon_char);
+          s_u8g2.setFont(u8g2_font_profont11_tr); 
       }
       cx += 14;
   }
