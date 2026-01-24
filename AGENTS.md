@@ -32,6 +32,16 @@ pio run -e esp32c6-devkitm-1 -t clean
 pio device monitor -e esp32c6-devkitm-1 --port /dev/ttyACM0 -b 115200
 ```
 
+- Upload static web files to device filesystem (LittleFS):
+
+  Place your `.html`, `.css` and `.js` files in the `data/` directory at the repository root and upload them to the device with:
+
+```
+pio run -e esp32c6-devkitm-1 -t uploadfs
+```
+
+  Note: The firmware serves the UI only from the device filesystem (LittleFS). If the filesystem is not mounted or the files are missing, requests for UI files (e.g. `/index.html`, `/app.js`, `/style.css`) will return 404.
+
 - PlatformIO unit tests
 - There are currently no unit tests in this repository. If you add tests, PlatformIO's test runner is used:
 

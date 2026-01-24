@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <GxEPD2_3C.h>
+#include <LittleFS.h>
 
 #include "secrets.h"
 #include "config.h"
@@ -45,6 +46,14 @@ void setup() {
 
   // Connect to WiFi (STA) or start AP fallback
   connectWiFi();
+
+  // Mount LittleFS so the device can serve static files (index.html / app.js / style.css).
+  // If the mount fails the web UI files will not be available and UI requests will return 404.
+  if (LittleFS.begin()) {
+    Serial.println("LittleFS mounted");
+  } else {
+    Serial.println("LittleFS mount failed: web UI files not available; UI requests will return 404");
+  }
 
   // Start the HTTP server and register endpoints
   server_init();

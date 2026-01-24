@@ -4,15 +4,20 @@
   HTTP server implementation and request handlers for the ESP32 e-paper API example.
 
   - Registers endpoints:
-      GET  /        -> simple HTML UI
+      GET  /        -> simple HTML UI (served from LittleFS: /index.html, /app.js, /style.css)
       GET  /status  -> JSON status (ip, currentText, partialSupported)
       POST /text    -> JSON { "text":"...", "color":"red"|"black", "forceFull":true|false }
       POST /image   -> JSON { "width":..., "height":..., "data":"<BASE64>", "format":"bw"|"3c", "color":"red"|"black", "forceFull":false }
       POST /img     -> alias for /image
       POST /clear   -> clears the display (full white)
+
+  Note: The web UI is served only from LittleFS (files placed in the repository `data/` directory
+  and uploaded to the device with `pio run -e esp32c6-devkitm-1 -t uploadfs`). There is no embedded
+  HTML/CSS/JS fallback in the firmware — if the files are missing requests will return 404.
 */
 
 #include "server.h"
+// NOTE: static_assets.h removed — UI is served only from LittleFS (/data).
 #include "drivers/epaper/display.h"
 #include "app/wifi/wifi.h"
 #include "utils/base64.h"
@@ -25,85 +30,31 @@
 #include <ArduinoJson.h>
 #include <GxEPD2_3C.h> // for GxEPD_BLACK/GxEPD_RED
 #include <Arduino.h>
+#include <LittleFS.h>
 #include <vector>
 
 // Local server instance
 static WebServer server(WEB_SERVER_PORT);
 
 // --- Handlers ---
+static void serve_file_from_littlefs(const char* path, const char* mime) {
+  // Serve a static file from LittleFS. If the file is missing, return 404.
+  if (!LittleFS.exists(path)) {
+    server.send(404, "text/plain", "Not found");
+    return;
+  }
+  File f = LittleFS.open(path, "r");
+  if (!f) {
+    server.send(500, "text/plain", "Failed to open file");
+    return;
+  }
+  server.streamFile(f, mime);
+  f.close();
+}
+
 static void handleRoot() {
-  String html = "<!doctype html><html><head><meta charset='utf-8'><title>ESP32 Menu</title></head><body>";
-  html += "<h2>Device Menu</h2>";
-
-  html += "<div id='menu'><ul style='list-style:none;padding-left:0;'>";
-  html += "<li id='m0'>Home</li>";
-  html += "<li id='m1'>Text App</li>";
-  html += "<li id='m2'>Settings</li>";
-  html += "</ul></div>";
-
-  html += "<div id='settingsArea' style='display:none;'>";
-  html += "<h3>Settings</h3>";
-  html += "<p id='ipline'></p>";
-  html += "<p><button onclick='postSetting(0)'>IP (noop)</button> <button onclick='postSetting(1)'>Toggle Partial</button> <button onclick='postSetting(2)'>Full Clean</button></p>";
-  html += "</div>";
-  html += "<div id='appArea' style='display:none;margin-top:12px;'><h3>Text App</h3><div id='textOptions'></div><p><button onclick='enterApp()'>Enter app</button> <button onclick='exitApp()'>Exit app</button></p></div>";
-  html += "<p><button onclick='btnNext()'>Next</button> <button onclick='btnSelect()'>Select</button> <button onclick='btnBack()'>Back</button></p>";
-  html += "<p><button onclick='doDiag()'>Run diag</button> <span id='diag'></span></p>";
-
-  // EPD busy indicator (updated by client-side polling)
-  html += "<div id='epdBusy' style='display:none;color:#b00;font-weight:bold;margin-top:8px;'>EPD updating...</div>";
-
-  html += "<script>\n";
-  html += "var lastState = -1;\n";
-  html += "async function refresh(){\n";
-  html += "  try{\n";
-  html += "    let r=await fetch('/ui_state');\n";
-  html += "    let j=await r.json();\n";
-  html += "    let s=j.state;\n";
-  html += "    let busy = j.epdBusy;\n";
-  html += "    document.getElementById('m0').style.fontWeight='normal';\n";
-  html += "    document.getElementById('m1').style.fontWeight='normal';\n";
-  html += "    document.getElementById('m2').style.fontWeight='normal';\n";
-  html += "    if (s==0) document.getElementById('m0').style.fontWeight='bold';\n";
-  html += "    else if (s==1) document.getElementById('m1').style.fontWeight='bold';\n";
-  html += "    else if (s==2) document.getElementById('m2').style.fontWeight='bold';\n";
-  html += "    if (s==3){ document.getElementById('settingsArea').style.display='block'; refreshSettings(); } else { document.getElementById('settingsArea').style.display='none'; }\n";
-  html += "    document.getElementById('epdBusy').style.display = busy ? 'block' : 'none';\n";
-  html += "    // App area handling: show/hide and refresh list when entering state 1\n";
-  html += "    if (s==1) {\n";
-  html += "      document.getElementById('appArea').style.display = 'block';\n";
-  html += "      if (lastState !== 1) loadTextOptions();\n";
-  html += "    } else {\n";
-  html += "      document.getElementById('appArea').style.display = 'none';\n";
-  html += "    }\n";
-  html += "    lastState = s;\n";
-  html += "  } catch(e){ console.log(e); }\n";
-  html += "}\n";
-  html += "async function loadTextOptions(){\n";
-  html += "  try{\n";
-  html += "    let r = await fetch('/apps/text/list');\n";
-  html += "    let j = await r.json();\n";
-  html += "    let html = '';\n";
-  html += "    for(let i=0;i<j.options.length;i++){\n";
-  html += "      html += '<div style=\"margin-bottom:6px\">' + i + ': ' + j.options[i] + ' <button onclick=\"postSelect('+i+')\">Show</button></div>';\n";
-  html += "    }\n";
-  html += "    document.getElementById('textOptions').innerHTML = html;\n";
-  html += "  } catch(e){ console.log(e); }\n";
-  html += "}\n";
-  html += "function postSelect(i){ fetch('/apps/text/select', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({index:i})}).then(refresh); }\n";
-  html += "function enterApp(){ fetch('/button/select',{method:'POST'}).then(refresh); }\n";
-  html += "function exitApp(){ fetch('/button/back',{method:'POST'}).then(refresh); }\n";
-  html += "async function refreshSettings(){ try{ let r=await fetch('/status'); let j=await r.json(); document.getElementById('ipline').innerText = 'IP: ' + j.ip + ' | Partial: ' + (j.partialEnabled ? 'ON' : 'OFF'); }catch(e){console.log(e);} }\n";
-  html += "function btnNext(){ fetch('/button/next',{method:'POST'}).then(refresh); }\n";
-  html += "function btnSelect(){ fetch('/button/select',{method:'POST'}).then(refresh); }\n";
-  html += "function btnBack(){ fetch('/button/back',{method:'POST'}).then(refresh); }\n";
-  html += "function postSetting(i){ fetch('/button/next',{method:'POST'}).then(()=>fetch('/button/select',{method:'POST'})).then(refresh); }\n";
-  html += "function doDiag(){ fetch('/diag').then(r=>r.json()).then(j=>document.getElementById('diag').innerText=JSON.stringify(j)); }\n";
-  html += "setInterval(refresh,700); refresh();\n";
-  html += "</script>";
-
-  html += "</body></html>";
-  server.send(200, "text/html", html);
+  // Serve index.html from LittleFS (no embedded fallback).
+  serve_file_from_littlefs("/index.html", "text/html");
 }
 
 static void handleStatus() {
@@ -232,6 +183,8 @@ static void handleButtonBack() {
 // --- Public API ---
 void server_init() {
   server.on("/", HTTP_GET, handleRoot);
+  server.on("/app.js", HTTP_GET, [](){ serve_file_from_littlefs("/app.js", "application/javascript"); });
+  server.on("/style.css", HTTP_GET, [](){ serve_file_from_littlefs("/style.css", "text/css"); });
   server.on("/status", HTTP_GET, handleStatus);
   server.on("/text", HTTP_POST, handleSetText);
   server.on("/image", HTTP_POST, handleImageUpload);

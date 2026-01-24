@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ESP32 Menu</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <h2>Device Menu</h2>
+
+  <div id="menu">
+    <ul class="menu-list">
+      <li id="m0" class="menu-item">Home</li>
+      <li id="m1" class="menu-item">Text App</li>
+      <li id="m2" class="menu-item">Settings</li>
+    </ul>
+  </div>
+
+  <div id="settingsArea" class="hidden settings-area">
+    <h3>Settings</h3>
+    <p id="ipline" class="ipline"></p>
+    <p class="settings-buttons">
+      <button data-action="ip">IP (noop)</button>
+      <button data-action="toggle">Toggle Partial</button>
+      <button data-action="clean">Full Clean</button>
+    </p>
+  </div>
+
+  <div id="appArea" class="hidden app-area">
+    <h3>Text App</h3>
+    <div id="textOptions" class="text-options"></div>
+    <p>
+      <button id="enterApp">Enter app</button>
+      <button id="exitApp">Exit app</button>
+    </p>
+  </div>
+
+  <p class="control-buttons">
+    <button id="btnNext">Next</button>
+    <button id="btnSelect">Select</button>
+    <button id="btnBack">Back</button>
+  </p>
+
+  <p>
+    <button id="doDiag">Run diag</button> <span id="diag"></span>
+  </p>
+
+  <!-- EPD busy indicator (updated by client-side polling) -->
+  <div id="epdBusy" class="epd-busy hidden">EPD updating...</div>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
