@@ -399,15 +399,21 @@ static void _exec_displayPage(const epd_job_t &job) {
             s_u8g2_epd.setFont(u8g2_font_profont15_tr);
             s_u8g2_epd.setFontMode(1); // Transparent mode
             s_u8g2_epd.setForegroundColor(GxEPD_BLACK);
-            s_u8g2_epd.setCursor(8, s_u8g2_epd.getFontAscent() + 4);
+            
+            // Normal
+            s_u8g2_epd.setCursor(2, s_u8g2_epd.getFontAscent() + 4); // X=2 aligned
+            s_u8g2_epd.print(job.page.title);
+            
+            // Bold (Offset +1)
+            s_u8g2_epd.setCursor(3, s_u8g2_epd.getFontAscent() + 4);
             s_u8g2_epd.print(job.page.title);
             
             currY = s_u8g2_epd.getFontAscent() + 8;
             display.drawFastHLine(0, currY, display.width(), GxEPD_BLACK);
-            display.drawFastHLine(0, currY + 1, display.width(), GxEPD_BLACK); // Double line for thickness
-            currY += 12;
+            display.drawFastHLine(0, currY + 1, display.width(), GxEPD_BLACK); // Double line
+            currY += 10; // Slightly reduced margin from 12->10
         } else {
-            currY = 8;
+            currY = 2; // Minimal top margin if no title
         }
 
         // 2. Draw Components
@@ -420,9 +426,16 @@ static void _exec_displayPage(const epd_job_t &job) {
                 case EPD_COMP_HEADER:
                     s_u8g2_epd.setFont(u8g2_font_profont15_tr);
                     s_u8g2_epd.setForegroundColor(GxEPD_BLACK);
-                    s_u8g2_epd.setCursor(8, currY + s_u8g2_epd.getFontAscent());
+                    
+                    // Draw Normal
+                    s_u8g2_epd.setCursor(2, currY + s_u8g2_epd.getFontAscent()); 
                     s_u8g2_epd.print(comp.text1);
-                    currY += (s_u8g2_epd.getFontAscent() - s_u8g2_epd.getFontDescent()) + 6;
+                    
+                    // Draw Bold (Offset +1)
+                    s_u8g2_epd.setCursor(3, currY + s_u8g2_epd.getFontAscent()); 
+                    s_u8g2_epd.print(comp.text1);
+                    
+                    currY += (s_u8g2_epd.getFontAscent() - s_u8g2_epd.getFontDescent()) + 1;
                     break;
 
                 case EPD_COMP_ROW:
@@ -430,28 +443,28 @@ static void _exec_displayPage(const epd_job_t &job) {
                     s_u8g2_epd.setForegroundColor(GxEPD_BLACK);
                     
                     // Label (Left)
-                    s_u8g2_epd.setCursor(8, currY + s_u8g2_epd.getFontAscent());
+                    s_u8g2_epd.setCursor(2, currY + s_u8g2_epd.getFontAscent()); // X changed from 8 to 2
                     s_u8g2_epd.print(comp.text1);
                     
                     // Value (Right)
-                    s_u8g2_epd.setForegroundColor(comp.color == 0 ? GxEPD_BLACK : comp.color);
-                    {
+                    if (comp.text2.length() > 0) {
+                        s_u8g2_epd.setForegroundColor(comp.color == 0 ? GxEPD_BLACK : comp.color);
                         int16_t valW = s_u8g2_epd.getUTF8Width(comp.text2.c_str());
-                        s_u8g2_epd.setCursor(display.width() - valW - 8, currY + s_u8g2_epd.getFontAscent());
+                        s_u8g2_epd.setCursor(display.width() - valW - 2, currY + s_u8g2_epd.getFontAscent()); // Right margin 2
                         s_u8g2_epd.print(comp.text2);
                     }
-                    currY += 20; // Slightly more spacing for a premium feel
+                    currY += 12;
                     break;
 
                 case EPD_COMP_PROGRESS:
                     s_u8g2_epd.setFont(u8g2_font_profont12_tr);
                     s_u8g2_epd.setForegroundColor(GxEPD_BLACK);
-                    s_u8g2_epd.setCursor(8, currY + s_u8g2_epd.getFontAscent());
+                    s_u8g2_epd.setCursor(2, currY + s_u8g2_epd.getFontAscent()); // X changed from 8 to 2
                     s_u8g2_epd.print(comp.text1);
                     
                     {
                         int16_t barW = display.width() - 100;
-                        int16_t barX = display.width() - barW - 40;
+                        int16_t barX = display.width() - barW - 30; // Adjusted for new spacing
                         int16_t barY = currY + 2;
                         int16_t barH = 8;
                         display.drawRect(barX, barY, barW, barH, GxEPD_BLACK);
@@ -461,15 +474,15 @@ static void _exec_displayPage(const epd_job_t &job) {
                         }
                         
                         // Percentage text
-                        s_u8g2_epd.setCursor(display.width() - 35, currY + s_u8g2_epd.getFontAscent());
+                        s_u8g2_epd.setCursor(display.width() - 25, currY + s_u8g2_epd.getFontAscent()); // Adjusted margin
                         s_u8g2_epd.print(comp.text2);
                     }
-                    currY += 16;
+                    currY += 14;
                     break;
 
                 case EPD_COMP_SEPARATOR:
-                    display.drawFastHLine(8, currY + 4, display.width() - 16, GxEPD_BLACK);
-                    currY += 10;
+                    display.drawFastHLine(2, currY + 1, display.width() - 4, GxEPD_BLACK); // X=2, Width-4
+                    currY += 4;
                     break;
             }
         }

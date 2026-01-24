@@ -27,8 +27,8 @@ constexpr uint8_t PIN_DC   = 21;
 constexpr uint16_t WEB_SERVER_PORT = 80;
 
 // Behavior flags (tweak for your panel / use-case)
-constexpr bool ENABLE_FORCE_CLEAR    = false; // run recovery clear at startup if true
-constexpr bool ENABLE_PARTIAL_UPDATE = true;  // attempt partial updates when supported
+constexpr bool ENABLE_FORCE_CLEAR    = true; // run recovery clear at startup if true
+constexpr bool ENABLE_PARTIAL_UPDATE = false;  // attempt partial updates when supported
 
 // Misc
 constexpr unsigned long WIFI_CONNECT_TIMEOUT_MS = 15000UL; // how long to wait for STA connect

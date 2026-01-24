@@ -47,19 +47,38 @@ This project includes a simple menu-driven UI that uses the SSD1306 OLED and thr
 - Confirm (short press): select / activate the current item
 - Confirm (long press): go back / cancel
 
-Initial screen (shown on the OLED at startup):
-- Home — shows WiFi status and a clock:
-  - If WiFi is connected the top line shows the assigned IP address; otherwise it shows "No WiFi".
-  - The clock displays HH:MM:SS. When WiFi is available the device attempts to sync time via NTP; if unavailable the display falls back to a local uptime-based clock.
-- Enter the Settings menu: press Next (short press).
-  - Settings:
-    - Partial update: toggles e-paper partial updates (fast updates)
-    - Full cleaning: runs a recovery-style full clear (white/black cycles)
-- Menu navigation:
-  - Prev (short press): scroll to previous entry
-  - Next (short press): scroll between entries
-  - Confirm (short press): select the current entry
-  - Confirm (long press): go back to the Home screen
+### Available Apps
+
+The device includes several built-in apps accessible through the carousel menu:
+
+- **Home** — WiFi status and clock display
+  - Shows IP address when connected, "No WiFi" otherwise
+  - Displays HH:MM time (NTP-synced when WiFi available, uptime-based fallback)
+  
+- **Text** — Text display management
+  - View and manage text displayed on the e-paper
+
+- **Beszel** — System monitoring
+  - Monitor server stats (CPU, memory, disk, network)
+  - Navigate between multiple systems
+  - Display detailed stats on e-paper
+
+- **NY Times** — RSS feed reader
+  - Read top stories from The New York Times
+  - Navigate through headlines on OLED
+  - View full article details on e-paper with optimized layout
+  - Filters out HTML artifacts
+
+- **Settings** — System configuration
+  - Partial update: toggles e-paper partial updates (fast updates)
+  - Full cleaning: runs a recovery-style full clear (white/black cycles)
+
+### Menu Navigation
+
+- Prev (short press): scroll to previous entry
+- Next (short press): scroll between entries
+- Confirm (short press): select the current entry
+- Confirm (long press): go back to the Home screen
 
 Note: the OLED is reserved for the menu/home UI by default — status/progress messages from the e-paper module (e.g. "Loading...", "Clearing 1/4") are suppressed so the OLED remains dedicated to the UI.
 
