@@ -288,12 +288,29 @@ void oled_drawHeader(const char *title, int16_t x_offset, int16_t y_offset) {
 
     s_u8g2.setFont(u8g2_font_profont10_tr);
     
+    // Draw black background bar
+    s_oled.fillRect(x_offset, y_offset, OLED_WIDTH, 12, SSD1306_BLACK);
+    
     // Draw text (White on Black)
     s_u8g2.setForegroundColor(SSD1306_WHITE);
     s_u8g2.setBackgroundColor(SSD1306_BLACK);
     s_u8g2.setCursor(x_offset + 4, y_offset + 10);
     s_u8g2.print(title);
     
+    UNLOCK_OLED();
+}
+
+void oled_drawScrollProgress(float progress) {
+    LOCK_OLED();
+    if (!s_available) { UNLOCK_OLED(); return; }
+    
+    if (progress < 0.0f) progress = 0.0f;
+    if (progress > 1.0f) progress = 1.0f;
+
+    int16_t h = (int16_t)(progress * (float)OLED_HEIGHT);
+    if (h > 0) {
+        s_oled.fillRect(0, 0, 1, h, SSD1306_WHITE);
+    }
     UNLOCK_OLED();
 }
 

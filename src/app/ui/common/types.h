@@ -11,6 +11,7 @@ struct View {
   void (*onSelect)(void);
   void (*onBack)(void);
   void (*poll)(void);
+  float (*getScrollProgress)(void);
 };
 
 // Represents an App in the main menu carousel

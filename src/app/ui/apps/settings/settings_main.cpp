@@ -58,6 +58,10 @@ static void view_back(void) {
     ui_setView(NULL);
 }
 
+static float view_get_progress(void) {
+    return (float)(s_index + 1) / (float)SET_COUNT;
+}
+
 const View VIEW_SETTINGS_MAIN = {
     "Settings",
     view_render,
@@ -65,7 +69,8 @@ const View VIEW_SETTINGS_MAIN = {
     view_prev,
     view_select,
     view_back,
-    NULL
+    NULL,
+    view_get_progress
 };
 
 static void app_renderPreview(int16_t x_offset, int16_t y_offset) {

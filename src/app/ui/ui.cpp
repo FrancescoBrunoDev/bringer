@@ -32,6 +32,9 @@ static float s_animVelocity = 0.0f;
 static float s_hAnimOffset = 0.0f; // 0.0 = carousel, 1.0 = in-app
 static float s_hAnimVelocity = 0.0f;
 static float s_hAnimTarget = 0.0f;
+static float s_progress = 0.0f; // Smoothed vertical progress
+static float s_progressOpacity = 0.0f; // 0.0 to 1.0
+static uint32_t s_lastInputTime = 0;
 static size_t s_prevAppIndex = 0;
 static const View *s_lastView = NULL; // For exit transition
 
@@ -89,8 +92,21 @@ void ui_redraw(void) {
       int16_t view_y = (int16_t)(s_animOffset * 64.0f);
       const View* v = s_currentView ? s_currentView : s_lastView;
       if (v) {
-          if (v->title) oled_drawHeader(v->title, view_x, 0);
           if (v->render) v->render(view_x, view_y);
+          if (v->title) oled_drawHeader(v->title, view_x, 0);
+      }
+  }
+
+  // Draw Vertical Scroll Progress (1px bar on the left)
+  if (s_progress > 0.001f && s_progressOpacity > 0.001f) {
+      if (s_progressOpacity >= 0.99f) {
+          oled_drawScrollProgress(s_progress);
+      } else {
+          // Subtle fade by drawing dots (dithering style) if low opacity 
+          // but for simplicity on OLED we just draw if > 0.5 or similar,
+          // OR we just draw it normally if we want it crisp.
+          // Let's draw it normally for now as requested "line".
+          oled_drawScrollProgress(s_progress);
       }
   }
   
@@ -128,6 +144,7 @@ void ui_triggerVerticalAnimation(bool up) {
 
 // Navigation Callbacks
 void ui_next(void) {
+    s_lastInputTime = millis();
     // If inside a view, delegate
     if (s_currentView) {
         if (s_currentView->onNext) s_currentView->onNext();
@@ -144,6 +161,7 @@ void ui_next(void) {
 }
 
 void ui_prev(void) {
+    s_lastInputTime = millis();
     // If inside a view, delegate
     if (s_currentView) {
         if (s_currentView->onPrev) s_currentView->onPrev();
@@ -160,6 +178,7 @@ void ui_prev(void) {
 }
 
 void ui_select(void) {
+    s_lastInputTime = millis();
     // If inside a view, delegate
     if (s_currentView) {
         if (s_currentView->onSelect) s_currentView->onSelect();
@@ -175,6 +194,7 @@ void ui_select(void) {
 }
 
 void ui_back(void) {
+    s_lastInputTime = millis();
     // If inside a view, delegate
     if (s_currentView) {
         if (s_currentView->onBack) {
@@ -211,6 +231,9 @@ void ui_init(void) {
   s_hAnimOffset = 0.0f;
   s_hAnimVelocity = 0.0f;
   s_prevAppIndex = 0;
+  s_progress = 0.0f;
+  s_progressOpacity = 0.0f;
+  s_lastInputTime = 0;
 
   oled_setMenuMode(true);
   ui_redraw();
@@ -258,6 +281,34 @@ void ui_poll(void) {
           s_hAnimVelocity = 0.0f;
           if (s_hAnimTarget == 0.0f) s_lastView = NULL;
       }
+      ui_redraw();
+  }
+
+  // Handle Progress Animation
+  float target_p = 0.0f;
+  if (s_hAnimOffset > 0.5f) {
+      // In-App progress
+      const View* v = s_currentView ? s_currentView : s_lastView;
+      if (v && v->getScrollProgress) target_p = v->getScrollProgress();
+  } else {
+      // Carousel progress (Skip Home at index 0)
+      size_t count = registry_getCount();
+      if (count > 1) {
+          if (s_appIndex == 0) target_p = 0.0f;
+          else target_p = (float)s_appIndex / (float)(count - 1);
+      }
+  }
+
+  if (abs(s_progress - target_p) > 0.001f) {
+      s_progress += (target_p - s_progress) * 0.4f; // Smooth transition (faster)
+      ui_redraw();
+  }
+
+  // Handle Scrollbar Visibility (Fades after 1 second)
+  float target_opacity = (millis() - s_lastInputTime < 1000) ? 1.0f : 0.0f;
+  if (abs(s_progressOpacity - target_opacity) > 0.001f) {
+      s_progressOpacity += (target_opacity - s_progressOpacity) * 0.2f;
+      if (abs(s_progressOpacity - target_opacity) < 0.01f) s_progressOpacity = target_opacity;
       ui_redraw();
   }
 

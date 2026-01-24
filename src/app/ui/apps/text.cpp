@@ -67,6 +67,12 @@ static void view_back(void) {
     ui_setView(NULL); // Return to carousel
 }
 
+static float view_get_progress(void) {
+    size_t count = text_app_get_count();
+    if (count == 0) return 0.0f;
+    return (float)(s_index + 1) / (float)count;
+}
+
 static const View VIEW_TEXT = {
     "Text App",
     view_render,
@@ -74,7 +80,8 @@ static const View VIEW_TEXT = {
     view_prev,
     view_select,
     view_back,
-    NULL // poll
+    NULL, // poll
+    view_get_progress
 };
 
 static void app_renderPreview(int16_t x_offset, int16_t y_offset) {

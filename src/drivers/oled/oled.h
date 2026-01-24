@@ -151,6 +151,13 @@ void oled_drawToggle(const char *label, bool state, int16_t x_offset = 0, int16_
 void oled_drawHeader(const char *title, int16_t x_offset = 0, int16_t y_offset = 0);
 
 /**
+ * oled_drawScrollProgress
+ * Draw a vertical progress bar on the left (2px wide).
+ * - progress: 0.0 to 1.0
+ */
+void oled_drawScrollProgress(float progress);
+
+/**
  * oled_showHoldToast
  * Show a toast that slides based on a manual progress value (0.0 to 1.0).
  * Useful for long-press feedback.

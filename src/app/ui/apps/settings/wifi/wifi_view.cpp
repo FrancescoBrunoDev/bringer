@@ -49,6 +49,10 @@ static void view_back(void) {
     ui_setView(&VIEW_SETTINGS_MAIN);
 }
 
+static float view_get_progress(void) {
+    return (float)(s_index + 1) / (float)WIFI_COUNT;
+}
+
 const View VIEW_SETTINGS_WIFI = {
     "Settings > Wifi",
     view_render,
@@ -56,5 +60,6 @@ const View VIEW_SETTINGS_WIFI = {
     view_prev,
     NULL,
     view_back,
-    NULL
+    NULL,
+    view_get_progress
 };
