@@ -47,6 +47,7 @@ void epd_init() {
   s_u8g2_epd.setForegroundColor(GxEPD_RED);
   s_u8g2_epd.setBackgroundColor(GxEPD_WHITE);
 
+  /*
   if (ENABLE_FORCE_CLEAR) {
     if (oled_isAvailable()) {
       oled_showStatus("Recovery clearing...");
@@ -57,6 +58,7 @@ void epd_init() {
       epd_forceClear();
     }
   }
+  */
 
   if (oled_isAvailable()) {
     oled_showStatus("Ready");

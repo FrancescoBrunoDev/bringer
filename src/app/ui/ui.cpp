@@ -20,6 +20,7 @@
 static size_t s_appIndex = 0;           // Index in the app registry (Carousel)
 static const View *s_currentView = NULL; // If non-NULL, we are "inside" an app loop
 static bool s_timeConfigured = false;
+static bool s_initialDateShown = false;
 
 // Helpers
 void ui_redraw(void) {
@@ -130,6 +131,7 @@ void ui_init(void) {
   s_appIndex = 0;
   s_currentView = NULL;
   s_timeConfigured = false;
+  s_initialDateShown = false;
 
   oled_setMenuMode(true);
   ui_redraw();
@@ -137,13 +139,19 @@ void ui_init(void) {
 
 void ui_poll(void) {
   // NTP Sync Logic
+  // NTP Sync Logic
   if (wifi_isConnected() && !s_timeConfigured) {
     configTime(0, 0, "pool.ntp.org", "time.google.com");
     s_timeConfigured = true;
-    
-    // Show date on E-Ink on startup (once time is synced)
-    time_t now = time(nullptr);
-    epd_displayDate(now);
+  }
+
+  // Once time is valid, show date on E-Paper (once)
+  if (s_timeConfigured && !s_initialDateShown) {
+      time_t now = time(nullptr);
+      if (now > 1600000000) {
+          epd_displayDate(now);
+          s_initialDateShown = true;
+      }
   }
 
   if (oled_poll()) {

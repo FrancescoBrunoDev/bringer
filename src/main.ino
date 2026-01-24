@@ -62,7 +62,7 @@ void setup() {
   ui_init();
 
   // Show initial text (display module stores default text)
-  epd_displayText(epd_getCurrentText(), GxEPD_RED, false);
+  // epd_displayText(epd_getCurrentText(), GxEPD_RED, false);
 
   Serial.println("Setup complete");
 }
