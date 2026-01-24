@@ -63,19 +63,13 @@ static void ui_renderAppPreview(size_t index, int16_t x_offset, int16_t y_offset
 
 // Helpers
 void ui_redraw(void) {
-  if (epd_isBusy()) {
-    if (oled_isAvailable()) {
-      oled_showLines("EPD", "Updating...");
-    } else {
-      Serial.println("UI: EPD busy (updating)");
-    }
-    return;
-  }
-
   // Horizontal translation logic
   int16_t h_px = (int16_t)(s_hAnimOffset * 128.0f);
 
   oled_clearBuffer();
+
+  // If E-Paper is busy rendering in background, we could show a tiny indicator here
+  // but for now let's just allow the UI to remain fully active as requested.
 
   // Draw Carousel if visible
   if (s_hAnimOffset < 0.99f) {
