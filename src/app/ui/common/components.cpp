@@ -16,13 +16,12 @@ void comp_time_and_wifi(void) {
   if (now > 1600000000) {
     struct tm tm;
     localtime_r(&now, &tm);
-    strftime(timebuf, sizeof(timebuf), "%H:%M:%S", &tm);
+    strftime(timebuf, sizeof(timebuf), "%H:%M", &tm);
   } else {
     unsigned long s = millis() / 1000;
-    snprintf(timebuf, sizeof(timebuf), "%02lu:%02lu:%02lu", (s/3600)%100, (s/60)%60, s%60);
+    snprintf(timebuf, sizeof(timebuf), "%02lu:%02lu", (s/3600)%100, (s/60)%60);
   }
-  const char *wst = wifi_isConnected() ? "WiFi: connected" : "WiFi: no";
-  oled_showLines(timebuf, wst);
+  oled_drawHomeScreen(timebuf, wifi_isConnected());
 }
 
 void comp_switch(const char *label, bool state) {

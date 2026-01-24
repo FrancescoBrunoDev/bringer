@@ -140,6 +140,10 @@ void ui_poll(void) {
   if (wifi_isConnected() && !s_timeConfigured) {
     configTime(0, 0, "pool.ntp.org", "time.google.com");
     s_timeConfigured = true;
+    
+    // Show date on E-Ink on startup (once time is synced)
+    time_t now = time(nullptr);
+    epd_displayDate(now);
   }
 
   if (oled_poll()) {

@@ -98,6 +98,12 @@ bool oled_isMenuMode(void);
 void oled_showWifiIcon(bool connected);
 
 /**
+ * oled_drawHomeScreen
+ * Draw the home screen with large centered time and small WiFi icon in top-right.
+ */
+void oled_drawHomeScreen(const char *time, bool wifiConnected);
+
+/**
  * oled_showToast
  * Show a transient, non-persistent overlay message for `ms` milliseconds.
  * This does an immediate redraw of the OLED to display the toast. Call

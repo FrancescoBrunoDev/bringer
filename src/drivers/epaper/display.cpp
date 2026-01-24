@@ -219,6 +219,16 @@ void epd_displayText(const String &txt, uint16_t color, bool forceFull) {
   if (oled_isAvailable()) oled_showStatus("Done");
 }
 
+void epd_displayDate(time_t now) {
+  struct tm tm;
+  localtime_r(&now, &tm);
+  char buf[64];
+  // Format: DD/MM/YYYY
+  strftime(buf, sizeof(buf), "%d/%m/%Y", &tm);
+  // Use Red color for visibility and style
+  epd_displayText(String(buf), GxEPD_RED);
+}
+
 static bool _draw_bw(int width, int height, const std::vector<uint8_t> &img, int rx, int ry, const char *color) {
   int bytesPerRow = (width + 7) / 8;
   uint16_t drawColor = GxEPD_RED;
