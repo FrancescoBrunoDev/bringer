@@ -54,6 +54,18 @@ bool oled_isAvailable(void);
 void oled_clear(void);
 
 /**
+ * oled_clearBuffer
+ * Clear only the internal buffer, without updating the screen.
+ */
+void oled_clearBuffer(void);
+
+/**
+ * oled_display
+ * Send the current buffer to the display.
+ */
+void oled_display(void);
+
+/**
  * oled_showStatus
  * Show a centered status message in large font (e.g. "Clearing", "Loading...").
  * An immediate display() is performed to update the screen.
@@ -99,9 +111,19 @@ void oled_showWifiIcon(bool connected);
 
 /**
  * oled_drawHomeScreen
- * Draw the home screen with large centered time and small WiFi icon in top-right.
+ * Draw the home screen with large centered time and small WiFi icon.
+ * y_offset: vertical translation (0 is normal)
+ * update: if true, calls display()
  */
-void oled_drawHomeScreen(const char *time, bool wifiConnected);
+void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t y_offset = 0, bool update = true);
+
+/**
+ * oled_drawAppPreview
+ * Draw an app title large and centered (carousel mode).
+ * y_offset: vertical translation (0 is normal)
+ * update: if true, calls display()
+ */
+void oled_drawBigText(const char *text, int16_t y_offset = 0, bool update = true);
 
 /**
  * oled_showToast

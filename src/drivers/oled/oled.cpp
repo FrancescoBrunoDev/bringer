@@ -89,6 +89,14 @@ void oled_clear(void) {
   s_oled.display();
 }
 
+void oled_clearBuffer(void) {
+  if (s_available) s_oled.clearDisplay();
+}
+
+void oled_display(void) {
+  if (s_available) s_oled.display();
+}
+
 // Helper: draw centered text
 // Uses U8g2 for drawing. Note: textSize arg is ignored as we rely on specific fonts now.
 static void _drawCenteredText(const char *msg, uint8_t textSize) {
@@ -232,39 +240,57 @@ void oled_showWifiIcon(bool connected) {
   s_oled.display();
 }
 
-void oled_drawHomeScreen(const char *time, bool wifiConnected) {
+void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t y_offset, bool update) {
   if (!s_available) return;
   
-  s_oled.clearDisplay();
-  
   // Draw Time: Large, centered
-  // Using a large font for visibility
   s_u8g2.setFont(u8g2_font_logisoso32_tf); 
-  
   int16_t w = s_u8g2.getUTF8Width(time);
   int16_t h_asc = s_u8g2.getFontAscent();
-  
   int16_t x = (OLED_WIDTH - w) / 2;
-  // Vertically center: 
-  // approximate center of cap height around screen center.
-  int16_t y = (OLED_HEIGHT / 2) + (h_asc / 2) - 3;
+  int16_t y = (OLED_HEIGHT / 2) + (h_asc / 2) - 3 + y_offset;
 
   s_u8g2.setCursor(x, y);
   s_u8g2.print(time);
   
-  // Draw WiFi Icon (Small, top right)
-  if (wifiConnected) {
+  // WiFi Icon (Small, top right) if visible
+  int16_t wy_base = 5 + y_offset;
+  if (wifiConnected && wy_base > -10 && wy_base < OLED_HEIGHT + 10) {
       int16_t wx = 120; 
-      int16_t wy = 5; 
-      // Arc
-      s_oled.drawCircle(wx, wy, 4, SSD1306_WHITE);
-      // Mask lower half
-      s_oled.fillRect(wx - 5, wy + 1, 11, 5, SSD1306_BLACK);
-      // Dot
-      s_oled.fillCircle(wx, wy + 3, 1, SSD1306_WHITE);
+      s_oled.drawCircle(wx, wy_base, 4, SSD1306_WHITE);
+      s_oled.fillRect(wx - 5, wy_base + 1, 11, 5, SSD1306_BLACK);
+      s_oled.fillCircle(wx, wy_base + 3, 1, SSD1306_WHITE);
   } 
 
-  s_oled.display();
+  if (update) s_oled.display();
+}
+
+void oled_drawBigText(const char *text, int16_t y_offset, bool update) {
+    if (!s_available) return;
+    
+    // Choose font based on text length (fallback if too long for logisoso32)
+    s_u8g2.setFont(u8g2_font_logisoso32_tf); 
+    int16_t w = s_u8g2.getUTF8Width(text);
+    if (w > OLED_WIDTH - 4) {
+        s_u8g2.setFont(u8g2_font_logisoso24_tf);
+        w = s_u8g2.getUTF8Width(text);
+    }
+    if (w > OLED_WIDTH - 4) {
+        s_u8g2.setFont(u8g2_font_profont17_tr);
+        w = s_u8g2.getUTF8Width(text);
+    }
+    
+    int16_t h_asc = s_u8g2.getFontAscent();
+    int16_t x = (OLED_WIDTH - w) / 2;
+    int16_t y = (OLED_HEIGHT / 2) + (h_asc / 2) - 3 + y_offset;
+
+    // Boundary check for rendering performance/glitches
+    if (y < -32 || y > OLED_HEIGHT + 32) return;
+
+    s_u8g2.setCursor(x, y);
+    s_u8g2.print(text);
+
+    if (update) s_oled.display();
 }
 
 void oled_showToast(const char *msg, uint32_t ms) {

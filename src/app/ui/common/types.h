@@ -14,6 +14,8 @@ struct View {
 
 // Represents an App in the main menu carousel
 struct App {
+    const char *name;
+
     // The view to render when this app is focused in the main menu
     // (Render the preview/widget)
     void (*renderPreview)(void);

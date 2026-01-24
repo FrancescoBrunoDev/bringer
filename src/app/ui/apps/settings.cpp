@@ -88,6 +88,7 @@ static void app_select(void) {
 }
 
 const App APP_SETTINGS = {
+    "Settings",
     app_renderPreview,
     app_select,
     NULL

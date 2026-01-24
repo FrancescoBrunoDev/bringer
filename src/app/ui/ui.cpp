@@ -22,6 +22,36 @@ static const View *s_currentView = NULL; // If non-NULL, we are "inside" an app 
 static bool s_timeConfigured = false;
 static bool s_initialDateShown = false;
 
+// Animation state
+static float s_animOffset = 0.0f;  // 0.0 = centered, 1.0 = incoming from bottom, -1.0 = incoming from top
+static size_t s_prevAppIndex = 0;
+
+// Internal rendering helper for carousel
+static void ui_renderAppPreview(size_t index, int16_t y_offset) {
+    const App** apps = registry_getApps();
+    size_t count = registry_getCount();
+    if (index >= count) return;
+
+    if (index == 0) {
+        // Home app shows clock. 
+        // We reuse the logic from components.cpp but with offset support.
+        char timebuf[16];
+        time_t now = time(nullptr);
+        if (now > 1600000000) {
+            struct tm tm;
+            localtime_r(&now, &tm);
+            strftime(timebuf, sizeof(timebuf), "%H:%M", &tm);
+        } else {
+            unsigned long s = millis() / 1000;
+            snprintf(timebuf, sizeof(timebuf), "%02lu:%02lu", (s/3600)%100, (s/60)%60);
+        }
+        oled_drawHomeScreen(timebuf, wifi_isConnected(), y_offset, false);
+    } else {
+        // Other apps show their name large and centered
+        oled_drawBigText(apps[index]->name, y_offset, false);
+    }
+}
+
 // Helpers
 void ui_redraw(void) {
   if (epd_isBusy()) {
@@ -39,14 +69,26 @@ void ui_redraw(void) {
     return;
   }
 
-  // Otherwise, render the current App's preview (Carousel mode)
-  const App** apps = registry_getApps();
-  size_t count = registry_getCount();
-  if (s_appIndex < count && apps[s_appIndex]->renderPreview) {
-      apps[s_appIndex]->renderPreview();
+  // Otherwise, render the Carousel with animation
+  oled_clearBuffer();
+  
+  if (abs(s_animOffset) < 0.01f) {
+      // Static view
+      ui_renderAppPreview(s_appIndex, 0);
   } else {
-      oled_showLines("Error", "No App");
+      // Dynamic view (scrolling)
+      int16_t offset_px = (int16_t)(s_animOffset * 64.0f);
+      
+      // Moving NEXT (suggests scrolling UP, new app comes from bottom)
+      // If s_animOffset > 0, we are transitioning from s_prevAppIndex to s_appIndex.
+      // Current s_appIndex is at offset_px (starts at 64, goes to 0)
+      // Previous s_prevAppIndex is at offset_px - 64 (starts at 0, goes to -64)
+      
+      ui_renderAppPreview(s_appIndex, offset_px);
+      ui_renderAppPreview(s_prevAppIndex, offset_px > 0 ? offset_px - 64 : offset_px + 64);
   }
+  
+  oled_display();
 }
 
 void ui_setView(const View* view) {
@@ -65,7 +107,9 @@ void ui_next(void) {
     // Carousel navigation
     size_t count = registry_getCount();
     if (count > 0) {
+        s_prevAppIndex = s_appIndex;
         s_appIndex = (s_appIndex + 1) % count;
+        s_animOffset = 1.0f; // Incoming from bottom
         ui_redraw();
     }
 }
@@ -80,7 +124,9 @@ void ui_prev(void) {
     // Carousel navigation
     size_t count = registry_getCount();
     if (count > 0) {
+        s_prevAppIndex = s_appIndex;
         s_appIndex = (s_appIndex + count - 1) % count;
+        s_animOffset = -1.0f; // Incoming from top
         ui_redraw();
     }
 }
@@ -132,6 +178,8 @@ void ui_init(void) {
   s_currentView = NULL;
   s_timeConfigured = false;
   s_initialDateShown = false;
+  s_animOffset = 0.0f;
+  s_prevAppIndex = 0;
 
   oled_setMenuMode(true);
   ui_redraw();
@@ -152,6 +200,13 @@ void ui_poll(void) {
           epd_displayDate(now);
           s_initialDateShown = true;
       }
+  }
+
+  // Handle Carousel Animation
+  if (abs(s_animOffset) > 0.001f) {
+      s_animOffset *= 0.6f; // Smooth decay
+      if (abs(s_animOffset) < 0.05f) s_animOffset = 0.0f;
+      ui_redraw();
   }
 
   if (oled_poll()) {

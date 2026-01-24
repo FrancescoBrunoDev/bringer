@@ -74,6 +74,7 @@ static void app_select(void) {
 }
 
 const App APP_TEXT = {
+    "Text",
     app_renderPreview,
     app_select,
     NULL

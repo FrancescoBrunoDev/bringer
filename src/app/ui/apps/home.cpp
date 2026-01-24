@@ -18,6 +18,7 @@ static void home_poll(void) {
 }
 
 const App APP_HOME = {
+    "Home",
     home_renderPreview,
     NULL, // No specific action on select
     home_poll
