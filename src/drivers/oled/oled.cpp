@@ -410,13 +410,19 @@ void oled_drawActiveToast(void) {
   int16_t offset_y = 0;
 
   if (s_toast_manual) {
-      offset_x = (int16_t)((1.0f - s_toast_progress) * 128.0f);
+      // Manual toasts (e.g. hold-to-confirm progress)
+      // Start slow and accelerate as progress completes (Ease-In)
+      float ease_p = 1.0f - (s_toast_progress * s_toast_progress);
+      offset_x = (int16_t)(ease_p * 128.0f);
   } else {
-      uint32_t remaining = s_toast_until > now ? s_toast_until - now : 0;
       const uint32_t anim_dur = 250;
+      uint32_t remaining = s_toast_until > now ? s_toast_until - now : 0;
+      
       if (remaining < anim_dur) {
-          float p = 1.0f - ((float)remaining / anim_dur);
-          offset_y = (int16_t)(p * 20.0f);
+          // Exit animation: starts slow, accelerates to off-screen (Ease-In)
+          float t = 1.0f - ((float)remaining / anim_dur);
+          float p = t * t;
+          offset_y = (int16_t)(p * 24.0f);
           if (s_toast_pos == TOAST_TOP) offset_y = -offset_y;
       }
   }
