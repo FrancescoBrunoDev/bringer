@@ -12,6 +12,9 @@ void ui_setView(const View* view);
 // Request a redraw of the current screen
 void ui_redraw(void);
 
+// Trigger a vertical animation (for submenus or carousel)
+void ui_triggerVerticalAnimation(bool up);
+
 #ifdef __cplusplus
 }
 #endif

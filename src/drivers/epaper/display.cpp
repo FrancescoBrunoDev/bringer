@@ -27,7 +27,8 @@ enum epd_job_type_t {
   JOB_IMAGE,
   JOB_CLEAR,
   JOB_FORCE_CLEAR,
-  JOB_DATE
+  JOB_DATE,
+  JOB_HEADER
 };
 
 struct epd_job_t {
@@ -60,6 +61,7 @@ static SemaphoreHandle_t s_stateMutex = NULL;
 
 // Internal execution helpers (called from task)
 static void _exec_displayText(const epd_job_t &job);
+static void _exec_displayHeader(const epd_job_t &job);
 static void _exec_drawImage(const epd_job_t &job);
 static void _exec_clear(bool force);
 
@@ -98,6 +100,9 @@ static void epd_worker_task(void *pvParameters) {
             textJob.color = GxEPD_RED;
             _exec_displayText(textJob);
           }
+          break;
+        case JOB_HEADER:
+          _exec_displayHeader(*job);
           break;
       }
       
@@ -165,6 +170,14 @@ void epd_displayText(const String &txt, uint16_t color, bool forceFull) {
   job->forceFull = forceFull;
   
   _queueJob(job);
+}
+
+void epd_displayHeader(const String &txt) {
+    if (txt.length() == 0) return;
+    epd_job_t *job = new epd_job_t();
+    job->type = JOB_HEADER;
+    job->text = txt;
+    _queueJob(job);
 }
 
 void epd_displayDate(time_t now) {
@@ -269,6 +282,29 @@ static void _exec_displayText(const epd_job_t &job) {
     if (usedPartial) display.fillRect(rx, ry, rw, rh, GxEPD_WHITE);
     else display.fillScreen(GxEPD_WHITE);
     s_u8g2_epd.setCursor(cx, cy);
+    s_u8g2_epd.print(job.text);
+  } while (display.nextPage());
+
+  if (oled_isAvailable()) oled_showStatus("Done");
+}
+
+static void _exec_displayHeader(const epd_job_t &job) {
+  if (oled_isAvailable()) oled_showStatus("EPD Header...");
+
+  s_u8g2_epd.setFont(u8g2_font_profont17_tr);
+  s_u8g2_epd.setBackgroundColor(GxEPD_WHITE);
+  s_u8g2_epd.setForegroundColor(GxEPD_BLACK);
+
+  int16_t bh = s_u8g2_epd.getFontAscent() - s_u8g2_epd.getFontDescent();
+  uint16_t rw = display.width();
+  uint16_t rh = bh + 8;
+
+  display.setPartialWindow(0, 0, rw, rh);
+  display.firstPage();
+  do {
+    display.fillRect(0, 0, rw, rh, GxEPD_BLACK);
+    s_u8g2_epd.setForegroundColor(GxEPD_WHITE);
+    s_u8g2_epd.setCursor(8, s_u8g2_epd.getFontAscent() + 4);
     s_u8g2_epd.print(job.text);
   } while (display.nextPage());
 

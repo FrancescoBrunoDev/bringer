@@ -35,6 +35,9 @@ void epd_init();
 // - `forceFull` : when true, perform a full update even if partial updates are supported
 void epd_displayText(const String &txt, uint16_t color, bool forceFull = false);
 
+// Draw a header bar at the top with the given title.
+void epd_displayHeader(const String &txt);
+
 // Perform a recovery-style full clear (white/black cycles) to remove artifacts.
 void epd_forceClear(void);
 // Non-blocking request: schedule a force-clear on a background task if the

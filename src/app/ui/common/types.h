@@ -4,6 +4,7 @@
 #include <Arduino.h>
 
 struct View {
+  const char *title;
   void (*render)(int16_t x_offset, int16_t y_offset);
   void (*onNext)(void);
   void (*onPrev)(void);

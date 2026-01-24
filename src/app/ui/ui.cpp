@@ -86,9 +86,11 @@ void ui_redraw(void) {
   // Draw View if visible
   if (s_hAnimOffset > 0.01f) {
       int16_t view_x = 128 - h_px;
+      int16_t view_y = (int16_t)(s_animOffset * 64.0f);
       const View* v = s_currentView ? s_currentView : s_lastView;
-      if (v && v->render) {
-          v->render(view_x, 0);
+      if (v) {
+          if (v->title) oled_drawHeader(v->title, view_x, 0);
+          if (v->render) v->render(view_x, view_y);
       }
   }
   
@@ -109,7 +111,18 @@ void ui_setView(const View* view) {
         s_lastView = s_currentView;
     }
 
+    // Reset vertical animation on view change
+    s_animOffset = 0.0f;
+    s_animVelocity = 0.0f;
+
     s_currentView = view;
+    ui_redraw();
+}
+
+void ui_triggerVerticalAnimation(bool up) {
+    s_animOffset = up ? 1.0f : -1.0f;
+    s_animVelocity = 0.0f;
+    oled_showToast(NULL, 600, up ? TOAST_BOTTOM : TOAST_TOP, up ? TOAST_ICON_DOWN : TOAST_ICON_UP);
     ui_redraw();
 }
 
@@ -126,10 +139,7 @@ void ui_next(void) {
     if (count > 0) {
         s_prevAppIndex = s_appIndex;
         s_appIndex = (s_appIndex + 1) % count;
-        s_animOffset = 1.0f; // Incoming from bottom
-        s_animVelocity = 0.0f;
-        oled_showToast(NULL, 600, TOAST_BOTTOM, TOAST_ICON_DOWN);
-        ui_redraw();
+        ui_triggerVerticalAnimation(true);
     }
 }
 
@@ -145,10 +155,7 @@ void ui_prev(void) {
     if (count > 0) {
         s_prevAppIndex = s_appIndex;
         s_appIndex = (s_appIndex + count - 1) % count;
-        s_animOffset = -1.0f; // Incoming from top
-        s_animVelocity = 0.0f;
-        oled_showToast(NULL, 600, TOAST_TOP, TOAST_ICON_UP);
-        ui_redraw();
+        ui_triggerVerticalAnimation(false);
     }
 }
 

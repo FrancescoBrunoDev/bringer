@@ -236,6 +236,21 @@ void oled_drawBigText(const char *text, int16_t x_offset, int16_t y_offset, bool
     UNLOCK_OLED();
 }
 
+void oled_drawHeader(const char *title, int16_t x_offset, int16_t y_offset) {
+    LOCK_OLED();
+    if (!s_available || !title) { UNLOCK_OLED(); return; }
+
+    s_u8g2.setFont(u8g2_font_profont10_tr);
+    
+    // Draw text (White on Black)
+    s_u8g2.setForegroundColor(SSD1306_WHITE);
+    s_u8g2.setBackgroundColor(SSD1306_BLACK);
+    s_u8g2.setCursor(x_offset + 4, y_offset + 10);
+    s_u8g2.print(title);
+    
+    UNLOCK_OLED();
+}
+
 static void _draw_toast_with_offsets(int16_t offset_x, int16_t offset_y) {
   int16_t base_y = (s_toast_pos == TOAST_TOP) ? 4 + offset_y : OLED_HEIGHT - 22 + offset_y;
   s_u8g2.setFont(u8g2_font_profont12_tr);

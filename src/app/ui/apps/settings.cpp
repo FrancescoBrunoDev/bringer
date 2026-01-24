@@ -8,41 +8,50 @@
 
 enum SettingsItem : uint8_t { SET_IP = 0, SET_PARTIAL, SET_FULL_CLEAN, SET_COUNT };
 static uint8_t s_index = 0;
+static uint8_t s_prevIndex = 0;
 
-static void view_render(int16_t x_offset, int16_t y_offset) {
+static void render_item(uint8_t index, int16_t x, int16_t y) {
   char buf[40];
-  switch (s_index) {
+  switch (index) {
     case SET_IP: {
       IPAddress ip = wifi_getIP();
       if (ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] == 0) {
-        comp_title_and_text("Settings", "IP: none", x_offset, y_offset, false);
+        oled_drawBigText("IP: none", x, y, false);
       } else {
         snprintf(buf, sizeof(buf), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-        comp_title_and_text("Settings", buf, x_offset, y_offset, false);
+        oled_drawBigText(buf, x, y, false);
       }
       break;
     }
     case SET_PARTIAL:
       snprintf(buf, sizeof(buf), "Partial: %s", epd_getPartialEnabled() ? "ON" : "OFF");
-      comp_title_and_text("Settings", buf, x_offset, y_offset, false);
+      oled_drawBigText(buf, x, y, false);
       break;
     case SET_FULL_CLEAN:
-        comp_title_and_text("Settings", "Full cleaning", x_offset, y_offset, false);
-      break;
-    default:
-        comp_title_and_text("Settings", "", x_offset, y_offset, false);
+      oled_drawBigText("Full clean", x, y, false);
       break;
   }
 }
 
+static void view_render(int16_t x_offset, int16_t y_offset) {
+  if (abs(y_offset) < 1) {
+    render_item(s_index, x_offset, 0);
+  } else {
+    render_item(s_index, x_offset, y_offset);
+    render_item(s_prevIndex, x_offset, y_offset > 0 ? y_offset - 64 : y_offset + 64);
+  }
+}
+
 static void view_next(void) {
+    s_prevIndex = s_index;
     s_index = (s_index + 1) % SET_COUNT;
-    ui_redraw();
+    ui_triggerVerticalAnimation(true);
 }
 
 static void view_prev(void) {
+    s_prevIndex = s_index;
     s_index = (s_index + SET_COUNT - 1) % SET_COUNT;
-    ui_redraw();
+    ui_triggerVerticalAnimation(false);
 }
 
 static void view_select(void) {
@@ -52,7 +61,6 @@ static void view_select(void) {
     case SET_PARTIAL: {
       bool cur = epd_getPartialEnabled();
       epd_setPartialEnabled(!cur);
-      delay(600);
       break;
     }
     case SET_FULL_CLEAN: {
@@ -70,6 +78,7 @@ static void view_back(void) {
 }
 
 static const View VIEW_SETTINGS = {
+    "Settings",
     view_render,
     view_next,
     view_prev,
