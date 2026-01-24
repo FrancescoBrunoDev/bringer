@@ -450,13 +450,26 @@ void oled_drawActiveToast(void) {
 bool oled_poll(void) {
   LOCK_OLED();
   if (!s_available || s_toast_until == 0) { UNLOCK_OLED(); return false; }
-  if (millis() > s_toast_until) {
+  
+  uint32_t now = millis();
+  if (now > s_toast_until) {
     s_toast_until = 0;
     s_toast_manual = false;
     UNLOCK_OLED();
-    return true; 
+    return true; // Toast just ended: redraw needed to clear it
   }
+
+  // If manual (e.g. hold-to-confirm), we always return true as progress might be updating
+  if (s_toast_manual) { UNLOCK_OLED(); return true; }
+
+  // Redraw during entry (initial 250ms) and exit (final 250ms).
+  // This ensures the toast is shown immediately and animates out, 
+  // while avoiding redundant redraws during the static middle period.
+  const uint32_t anim_dur = 250;
+  if (now - s_toast_start < anim_dur) { UNLOCK_OLED(); return true; }
+  if (s_toast_until - now < anim_dur) { UNLOCK_OLED(); return true; }
+
   UNLOCK_OLED();
-  return true;
+  return false; 
 }
 

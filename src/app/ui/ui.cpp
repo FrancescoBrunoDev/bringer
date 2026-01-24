@@ -22,9 +22,9 @@ static const View *s_currentView = NULL; // If non-NULL, we are "inside" an app 
 static bool s_timeConfigured = false;
 static bool s_initialDateShown = false;
 
-// Physics constants (Unified for consistent feel)
-static constexpr float ANIM_K = 1.0f;   // More speed
-static constexpr float ANIM_D = 0.35f;  // Less bounce
+// Physics constants (Unified for snappier feel)
+static constexpr float ANIM_K = 2.0f;   // Higher stiffness
+static constexpr float ANIM_D = 0.28f;  // More damping (settles faster)
 
 // Animation state
 static float s_animOffset = 0.0f;  // 0.0 = centered, 1.0 = incoming from bottom, -1.0 = incoming from top
@@ -138,7 +138,8 @@ void ui_setView(const View* view) {
 void ui_triggerVerticalAnimation(bool up) {
     s_animOffset = up ? 1.0f : -1.0f;
     s_animVelocity = 0.0f;
-    oled_showToast(NULL, 600, up ? TOAST_BOTTOM : TOAST_TOP, up ? TOAST_ICON_DOWN : TOAST_ICON_UP);
+    // Faster feedback for navigation
+    oled_showToast(NULL, 400, up ? TOAST_BOTTOM : TOAST_TOP, up ? TOAST_ICON_DOWN : TOAST_ICON_UP);
     ui_redraw();
 }
 
@@ -240,7 +241,8 @@ void ui_init(void) {
 }
 
 void ui_poll(void) {
-  // NTP Sync Logic
+  bool needsRedraw = false;
+
   // NTP Sync Logic
   if (wifi_isConnected() && !s_timeConfigured) {
     configTime(0, 0, "pool.ntp.org", "time.google.com");
@@ -266,7 +268,7 @@ void ui_poll(void) {
           s_animOffset = 0.0f;
           s_animVelocity = 0.0f;
       }
-      ui_redraw();
+      needsRedraw = true;
   }
 
   // Handle Horizontal Transition (App Enter/Exit)
@@ -281,7 +283,7 @@ void ui_poll(void) {
           s_hAnimVelocity = 0.0f;
           if (s_hAnimTarget == 0.0f) s_lastView = NULL;
       }
-      ui_redraw();
+      needsRedraw = true;
   }
 
   // Handle Progress Animation
@@ -300,8 +302,8 @@ void ui_poll(void) {
   }
 
   if (abs(s_progress - target_p) > 0.001f) {
-      s_progress += (target_p - s_progress) * 0.4f; // Smooth transition (faster)
-      ui_redraw();
+      s_progress += (target_p - s_progress) * 0.4f;
+      needsRedraw = true;
   }
 
   // Handle Scrollbar Visibility (Fades after 1 second)
@@ -309,19 +311,23 @@ void ui_poll(void) {
   if (abs(s_progressOpacity - target_opacity) > 0.001f) {
       s_progressOpacity += (target_opacity - s_progressOpacity) * 0.2f;
       if (abs(s_progressOpacity - target_opacity) < 0.01f) s_progressOpacity = target_opacity;
-      ui_redraw();
+      needsRedraw = true;
   }
 
   // Handle Hold Progress (Back action feedback)
   float holdP = controls_getConfirmHoldProgress();
   if (holdP > 0.01f) {
       oled_showHoldToast(TOAST_BOTTOM, TOAST_ICON_BACK, holdP);
-      ui_redraw();
+      needsRedraw = true;
   }
 
+  // Handle Toast lifecycle redraws
   if (oled_poll()) {
+    needsRedraw = true;
+  }
+
+  if (needsRedraw) {
     ui_redraw();
-    return;
   }
 
   // Poll current View or App
