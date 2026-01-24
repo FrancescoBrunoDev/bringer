@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 struct View {
-  void (*render)(void);
+  void (*render)(int16_t x_offset, int16_t y_offset);
   void (*onNext)(void);
   void (*onPrev)(void);
   void (*onSelect)(void);
@@ -18,7 +18,7 @@ struct App {
 
     // The view to render when this app is focused in the main menu
     // (Render the preview/widget)
-    void (*renderPreview)(void);
+    void (*renderPreview)(int16_t x_offset, int16_t y_offset);
     
     // Called when the user presses SELECT on this app in the main menu
     // Usually switches the current view to the app's internal view.

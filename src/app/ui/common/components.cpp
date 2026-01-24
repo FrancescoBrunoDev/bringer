@@ -6,11 +6,11 @@
 
 #include <time.h>
 
-void comp_title_and_text(const char *title, const char *text) {
-  oled_showLines(title, text ? text : "");
+void comp_title_and_text(const char *title, const char *text, int16_t x_offset, int16_t y_offset, bool update) {
+  oled_showLines(title, text ? text : "", x_offset, y_offset, update);
 }
 
-void comp_time_and_wifi(void) {
+void comp_time_and_wifi(int16_t x_offset, int16_t y_offset, bool update) {
   char timebuf[16];
   time_t now = time(nullptr);
   if (now > 1600000000) {
@@ -21,7 +21,7 @@ void comp_time_and_wifi(void) {
     unsigned long s = millis() / 1000;
     snprintf(timebuf, sizeof(timebuf), "%02lu:%02lu", (s/3600)%100, (s/60)%60);
   }
-  oled_drawHomeScreen(timebuf, wifi_isConnected());
+  oled_drawHomeScreen(timebuf, wifi_isConnected(), x_offset, y_offset, update);
 }
 
 void comp_switch(const char *label, bool state) {

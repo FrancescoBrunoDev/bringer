@@ -7,8 +7,8 @@
 struct View;
 
 // Small components: Title+Text and Switch
-void comp_title_and_text(const char *title, const char *text);
-void comp_time_and_wifi(void);
+void comp_title_and_text(const char *title, const char *text, int16_t x_offset = 0, int16_t y_offset = 0, bool update = true);
+void comp_time_and_wifi(int16_t x_offset = 0, int16_t y_offset = 0, bool update = true);
 
 // Small switch component: render a label + ON/OFF state
 void comp_switch(const char *label, bool state);

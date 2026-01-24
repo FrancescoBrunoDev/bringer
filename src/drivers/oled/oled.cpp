@@ -40,6 +40,8 @@ static uint32_t s_toast_until = 0;
 static uint32_t s_toast_start = 0;
 static ToastPos s_toast_pos = TOAST_BOTTOM;
 static ToastIcon s_toast_icon = TOAST_ICON_NONE;
+static float s_toast_progress = 0.0f; // 0.0 to 1.0 for manual toasts
+static bool s_toast_manual = false;
 
 void oled_setMenuMode(bool enable) {
   s_menu_mode = enable;
@@ -145,7 +147,7 @@ void oled_showStatus(const char *msg) {
 }
 
 // Two-line display: useful for IP + status
-void oled_showLines(const char *line1, const char *line2) {
+void oled_showLines(const char *line1, const char *line2, int16_t x_offset, int16_t y_offset, bool update) {
   if (!s_available) {
     Serial.print("OLED LINES: ");
     Serial.print(line1);
@@ -154,30 +156,26 @@ void oled_showLines(const char *line1, const char *line2) {
     return;
   }
 
-  s_oled.clearDisplay();
-  
   // Use a smaller readable font for multi-line
   s_u8g2.setFont(u8g2_font_profont11_tr);
   
-  int16_t h = s_u8g2.getFontAscent();
-  
   // Line 1: Top half
   int16_t w1 = s_u8g2.getUTF8Width(line1);
-  int16_t x1 = (OLED_WIDTH - w1) / 2;
-  int16_t y1 = 20; // approximate top baseline
+  int16_t x1 = (OLED_WIDTH - w1) / 2 + x_offset;
+  int16_t y1 = 20 + y_offset; 
 
   s_u8g2.setCursor(x1, y1);
   s_u8g2.print(line1);
 
   // Line 2: Bottom half
   int16_t w2 = s_u8g2.getUTF8Width(line2);
-  int16_t x2 = (OLED_WIDTH - w2) / 2;
-  int16_t y2 = OLED_HEIGHT - 10; // approximate bottom baseline
+  int16_t x2 = (OLED_WIDTH - w2) / 2 + x_offset;
+  int16_t y2 = OLED_HEIGHT - 10 + y_offset;
 
   s_u8g2.setCursor(x2, y2);
   s_u8g2.print(line2);
 
-  s_oled.display();
+  if (update) s_oled.display();
 }
 
 // Show message + progress (e.g. 'Clearing 1/4')
@@ -233,14 +231,14 @@ void oled_showWifiIcon(bool connected) {
   s_oled.display();
 }
 
-void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t y_offset, bool update) {
+void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t x_offset, int16_t y_offset, bool update) {
   if (!s_available) return;
   
   // Draw Time: Large, centered
   s_u8g2.setFont(u8g2_font_logisoso32_tf); 
   int16_t w = s_u8g2.getUTF8Width(time);
   int16_t h_asc = s_u8g2.getFontAscent();
-  int16_t x = (OLED_WIDTH - w) / 2;
+  int16_t x = (OLED_WIDTH - w) / 2 + x_offset;
   int16_t y = (OLED_HEIGHT / 2) + (h_asc / 2) + y_offset;
 
   s_u8g2.setCursor(x, y);
@@ -248,17 +246,17 @@ void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t y_offset,
   
   // WiFi Icon (Small, top right) if visible
   int16_t wy_base = 5 + y_offset;
-  if (wifiConnected && wy_base > -10 && wy_base < OLED_HEIGHT + 10) {
-      int16_t wx = 120; 
-      s_oled.drawCircle(wx, wy_base, 4, SSD1306_WHITE);
-      s_oled.fillRect(wx - 5, wy_base + 1, 11, 5, SSD1306_BLACK);
-      s_oled.fillCircle(wx, wy_base + 3, 1, SSD1306_WHITE);
+  int16_t wx_base = 120 + x_offset;
+  if (wifiConnected && wy_base > -10 && wy_base < OLED_HEIGHT + 10 && wx_base > -10 && wx_base < OLED_WIDTH + 10) {
+      s_oled.drawCircle(wx_base, wy_base, 4, SSD1306_WHITE);
+      s_oled.fillRect(wx_base - 5, wy_base + 1, 11, 5, SSD1306_BLACK);
+      s_oled.fillCircle(wx_base, wy_base + 3, 1, SSD1306_WHITE);
   } 
 
   if (update) s_oled.display();
 }
 
-void oled_drawBigText(const char *text, int16_t y_offset, bool update) {
+void oled_drawBigText(const char *text, int16_t x_offset, int16_t y_offset, bool update) {
     if (!s_available) return;
     
     // Choose font based on text length (fallback if too long for logisoso32)
@@ -274,11 +272,11 @@ void oled_drawBigText(const char *text, int16_t y_offset, bool update) {
     }
     
     int16_t h_asc = s_u8g2.getFontAscent();
-    int16_t x = (OLED_WIDTH - w) / 2;
+    int16_t x = (OLED_WIDTH - w) / 2 + x_offset;
     int16_t y = (OLED_HEIGHT / 2) + (h_asc / 2) + y_offset;
 
     // Boundary check for rendering performance/glitches
-    if (y < -32 || y > OLED_HEIGHT + 32) return;
+    if (y < -32 || y > OLED_HEIGHT + 32 || x < -128 || x > OLED_WIDTH + 128) return;
 
     s_u8g2.setCursor(x, y);
     s_u8g2.print(text);
@@ -286,8 +284,8 @@ void oled_drawBigText(const char *text, int16_t y_offset, bool update) {
     if (update) s_oled.display();
 }
 
-static void _draw_toast_internal(int16_t offset) {
-  int16_t base_y = (s_toast_pos == TOAST_TOP) ? 4 + offset : OLED_HEIGHT - 22 + offset;
+static void _draw_toast_with_offsets(int16_t offset_x, int16_t offset_y) {
+  int16_t base_y = (s_toast_pos == TOAST_TOP) ? 4 + offset_y : OLED_HEIGHT - 22 + offset_y;
   
   s_u8g2.setFont(u8g2_font_profont12_tr);
   int16_t text_w = s_toast_msg.length() > 0 ? s_u8g2.getUTF8Width(s_toast_msg.c_str()) : 0;
@@ -298,12 +296,12 @@ static void _draw_toast_internal(int16_t offset) {
 
   if (text_w == 0) {
       total_w = box_h;
-      tx = OLED_WIDTH - total_w - 6;
+      tx = OLED_WIDTH - total_w - 6 + offset_x;
       s_oled.fillCircle(tx + radius, base_y + radius, radius, SSD1306_WHITE);
   } else {
       total_w = text_w + 16;
       if (s_toast_icon != TOAST_ICON_NONE) total_w += 14;
-      tx = OLED_WIDTH - total_w - 6;
+      tx = OLED_WIDTH - total_w - 6 + offset_x;
       s_oled.fillRoundRect(tx, base_y, total_w, box_h, radius, SSD1306_WHITE);
   }
   
@@ -324,6 +322,10 @@ static void _draw_toast_internal(int16_t offset) {
               break;
           case TOAST_ICON_SELECT:
               s_oled.fillCircle(cx, cy, 3, SSD1306_BLACK);
+              break;
+          case TOAST_ICON_BACK:
+              // Left arrow
+              s_oled.fillTriangle(cx+3, cy-3, cx+3, cy+3, cx-4, cy, SSD1306_BLACK);
               break;
           default: break;
       }
@@ -348,29 +350,44 @@ void oled_showToast(const char *msg, uint32_t ms, ToastPos pos, ToastIcon icon) 
   s_toast_until = s_toast_start + ms;
   s_toast_pos = pos;
   s_toast_icon = icon;
+  s_toast_manual = false;
+}
+
+void oled_showHoldToast(ToastPos pos, ToastIcon icon, float progress) {
+    if (!s_available) return;
+    s_toast_msg = "";
+    s_toast_pos = pos;
+    s_toast_icon = icon;
+    s_toast_progress = progress;
+    s_toast_manual = true;
+    s_toast_until = millis() + 500; // auto-expire if no updates
 }
 
 void oled_drawActiveToast(void) {
   if (s_toast_until == 0) return;
   
   uint32_t now = millis();
-  uint32_t remaining = s_toast_until > now ? s_toast_until - now : 0;
-  
-  const uint32_t anim_dur = 250;
-  int16_t offset = 0;
-  
-  if (remaining < anim_dur) {
-      // Slide out: from 0 to 20
-      float p = 1.0f - ((float)remaining / anim_dur);
-      offset = (int16_t)(p * 20.0f);
-  }
-  
-  // If at top, offset should be negative (slide up to -20)
-  if (s_toast_pos == TOAST_TOP) {
-      _draw_toast_internal(-offset);
+  int16_t offset_x = 0;
+  int16_t offset_y = 0;
+
+  if (s_toast_manual) {
+      // Slide from right: progress 0.0 -> offset 128, progress 1.0 -> offset 0
+      offset_x = (int16_t)((1.0f - s_toast_progress) * 128.0f);
   } else {
-      _draw_toast_internal(offset);
+      uint32_t remaining = s_toast_until > now ? s_toast_until - now : 0;
+      const uint32_t anim_dur = 250;
+      if (remaining < anim_dur) {
+          // Slide out vertically
+          float p = 1.0f - ((float)remaining / anim_dur);
+          offset_y = (int16_t)(p * 20.0f);
+          if (s_toast_pos == TOAST_TOP) offset_y = -offset_y;
+      }
   }
+  
+  // We apply offset_y to the base ty in _draw_toast_internal
+  // Let's pass both to a slightly modified internal helper? 
+  // No, let's just use globals or pass them.
+  _draw_toast_with_offsets(offset_x, offset_y);
 }
 
 bool oled_poll(void) {
@@ -379,9 +396,10 @@ bool oled_poll(void) {
   
   if (millis() > s_toast_until) {
     s_toast_until = 0;
+    s_toast_manual = false;
     return true; // Redraw to clear
   }
   
-  // Keep redrawing for animations
+  // Keep redrawing for animations or hold updates
   return true;
 }

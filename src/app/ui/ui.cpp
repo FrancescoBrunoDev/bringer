@@ -22,20 +22,28 @@ static const View *s_currentView = NULL; // If non-NULL, we are "inside" an app 
 static bool s_timeConfigured = false;
 static bool s_initialDateShown = false;
 
+// Physics constants (Unified for consistent feel)
+static constexpr float ANIM_K = 1.0f;   // More speed
+static constexpr float ANIM_D = 0.35f;  // Less bounce
+
 // Animation state
 static float s_animOffset = 0.0f;  // 0.0 = centered, 1.0 = incoming from bottom, -1.0 = incoming from top
 static float s_animVelocity = 0.0f;
+static float s_hAnimOffset = 0.0f; // 0.0 = carousel, 1.0 = in-app
+static float s_hAnimVelocity = 0.0f;
+static float s_hAnimTarget = 0.0f;
 static size_t s_prevAppIndex = 0;
+static const View *s_lastView = NULL; // For exit transition
 
 // Internal rendering helper for carousel
-static void ui_renderAppPreview(size_t index, int16_t y_offset) {
+// Internal rendering helper for carousel
+static void ui_renderAppPreview(size_t index, int16_t x_offset, int16_t y_offset) {
     const App** apps = registry_getApps();
     size_t count = registry_getCount();
     if (index >= count) return;
-
+    
     if (index == 0) {
-        // Home app shows clock. 
-        // We reuse the logic from components.cpp but with offset support.
+        // Centralized logic for Home (Clock) to ensure size
         char timebuf[16];
         time_t now = time(nullptr);
         if (now > 1600000000) {
@@ -46,10 +54,10 @@ static void ui_renderAppPreview(size_t index, int16_t y_offset) {
             unsigned long s = millis() / 1000;
             snprintf(timebuf, sizeof(timebuf), "%02lu:%02lu", (s/3600)%100, (s/60)%60);
         }
-        oled_drawHomeScreen(timebuf, wifi_isConnected(), y_offset, false);
+        oled_drawHomeScreen(timebuf, wifi_isConnected(), x_offset, y_offset, false);
     } else {
-        // Other apps show their name large and centered
-        oled_drawBigText(apps[index]->name, y_offset, false);
+        // Centralized logic for other apps (Titles) to ensure size
+        oled_drawBigText(apps[index]->name, x_offset, y_offset, false);
     }
 }
 
@@ -64,29 +72,30 @@ void ui_redraw(void) {
     return;
   }
 
-  // If we are inside an app's specific view, render it
-  if (s_currentView && s_currentView->render) {
-    s_currentView->render();
-    return;
+  // Horizontal translation logic
+  int16_t h_px = (int16_t)(s_hAnimOffset * 128.0f);
+
+  oled_clearBuffer();
+
+  // Draw Carousel if visible
+  if (s_hAnimOffset < 0.99f) {
+      int16_t carousel_x = -h_px;
+      if (abs(s_animOffset) < 0.01f) {
+          ui_renderAppPreview(s_appIndex, carousel_x, 0);
+      } else {
+          int16_t offset_y_px = (int16_t)(s_animOffset * 64.0f);
+          ui_renderAppPreview(s_appIndex, carousel_x, offset_y_px);
+          ui_renderAppPreview(s_prevAppIndex, carousel_x, offset_y_px > 0 ? offset_y_px - 64 : offset_y_px + 64);
+      }
   }
 
-  // Otherwise, render the Carousel with animation
-  oled_clearBuffer();
-  
-  if (abs(s_animOffset) < 0.01f) {
-      // Static view
-      ui_renderAppPreview(s_appIndex, 0);
-  } else {
-      // Dynamic view (scrolling)
-      int16_t offset_px = (int16_t)(s_animOffset * 64.0f);
-      
-      // Moving NEXT (suggests scrolling UP, new app comes from bottom)
-      // If s_animOffset > 0, we are transitioning from s_prevAppIndex to s_appIndex.
-      // Current s_appIndex is at offset_px (starts at 64, goes to 0)
-      // Previous s_prevAppIndex is at offset_px - 64 (starts at 0, goes to -64)
-      
-      ui_renderAppPreview(s_appIndex, offset_px);
-      ui_renderAppPreview(s_prevAppIndex, offset_px > 0 ? offset_px - 64 : offset_px + 64);
+  // Draw View if visible
+  if (s_hAnimOffset > 0.01f) {
+      int16_t view_x = 128 - h_px;
+      const View* v = s_currentView ? s_currentView : s_lastView;
+      if (v && v->render) {
+          v->render(view_x, 0);
+      }
   }
   
   oled_drawActiveToast();
@@ -94,6 +103,18 @@ void ui_redraw(void) {
 }
 
 void ui_setView(const View* view) {
+    if (view == s_currentView) return;
+
+    if (view != NULL) {
+        // Entering App: target progress 1.0
+        s_hAnimTarget = 1.0f;
+        s_lastView = NULL;
+    } else {
+        // Exiting App: target progress 0.0
+        s_hAnimTarget = 0.0f;
+        s_lastView = s_currentView;
+    }
+
     s_currentView = view;
     ui_redraw();
 }
@@ -148,7 +169,6 @@ void ui_select(void) {
     const App** apps = registry_getApps();
     size_t count = registry_getCount();
     if (s_appIndex < count && apps[s_appIndex]->onSelect) {
-        oled_showToast("Selected", 800, TOAST_BOTTOM, TOAST_ICON_SELECT);
         apps[s_appIndex]->onSelect();
     }
 }
@@ -181,12 +201,14 @@ void ui_init(void) {
   controls_setConfirmCallback(ui_select);
   controls_setConfirmLongCallback(ui_back);
 
-  s_appIndex = 0;
   s_currentView = NULL;
+  s_lastView = NULL;
   s_timeConfigured = false;
   s_initialDateShown = false;
   s_animOffset = 0.0f;
   s_animVelocity = 0.0f;
+  s_hAnimOffset = 0.0f;
+  s_hAnimVelocity = 0.0f;
   s_prevAppIndex = 0;
 
   oled_setMenuMode(true);
@@ -210,20 +232,38 @@ void ui_poll(void) {
       }
   }
 
-  // Handle Carousel Animation (Spring-damper / Snappy)
+  // Handle Carousel Animation (Vertical)
   if (abs(s_animOffset) > 0.001f || abs(s_animVelocity) > 0.001f) {
-      const float k = 0.8f;   // Crisp speed
-      const float d = 0.42f;  // Reduced bounce factor
-      
-      float force = -k * s_animOffset;
+      float force = -ANIM_K * s_animOffset;
       s_animVelocity += force;
-      s_animVelocity *= d;
+      s_animVelocity *= ANIM_D;
       s_animOffset += s_animVelocity;
-
       if (abs(s_animOffset) < 0.005f && abs(s_animVelocity) < 0.005f) {
           s_animOffset = 0.0f;
           s_animVelocity = 0.0f;
       }
+      ui_redraw();
+  }
+
+  // Handle Horizontal Transition (App Enter/Exit)
+  if (abs(s_hAnimOffset - s_hAnimTarget) > 0.001f || abs(s_hAnimVelocity) > 0.001f) {
+      float force = -ANIM_K * (s_hAnimOffset - s_hAnimTarget);
+      s_hAnimVelocity += force;
+      s_hAnimVelocity *= ANIM_D;
+      s_hAnimOffset += s_hAnimVelocity;
+
+      if (abs(s_hAnimOffset - s_hAnimTarget) < 0.005f && abs(s_hAnimVelocity) < 0.005f) {
+          s_hAnimOffset = s_hAnimTarget;
+          s_hAnimVelocity = 0.0f;
+          if (s_hAnimTarget == 0.0f) s_lastView = NULL;
+      }
+      ui_redraw();
+  }
+
+  // Handle Hold Progress (Back action feedback)
+  float holdP = controls_getConfirmHoldProgress();
+  if (holdP > 0.01f) {
+      oled_showHoldToast(TOAST_BOTTOM, TOAST_ICON_BACK, holdP);
       ui_redraw();
   }
 

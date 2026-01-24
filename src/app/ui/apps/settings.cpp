@@ -9,28 +9,28 @@
 enum SettingsItem : uint8_t { SET_IP = 0, SET_PARTIAL, SET_FULL_CLEAN, SET_COUNT };
 static uint8_t s_index = 0;
 
-static void view_render(void) {
+static void view_render(int16_t x_offset, int16_t y_offset) {
   char buf[40];
   switch (s_index) {
     case SET_IP: {
       IPAddress ip = wifi_getIP();
       if (ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] == 0) {
-        comp_title_and_text("Settings", "IP: none");
+        comp_title_and_text("Settings", "IP: none", x_offset, y_offset, false);
       } else {
         snprintf(buf, sizeof(buf), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-        comp_title_and_text("Settings", buf);
+        comp_title_and_text("Settings", buf, x_offset, y_offset, false);
       }
       break;
     }
     case SET_PARTIAL:
       snprintf(buf, sizeof(buf), "Partial: %s", epd_getPartialEnabled() ? "ON" : "OFF");
-      comp_title_and_text("Settings", buf);
+      comp_title_and_text("Settings", buf, x_offset, y_offset, false);
       break;
     case SET_FULL_CLEAN:
-        comp_title_and_text("Settings", "Full cleaning");
+        comp_title_and_text("Settings", "Full cleaning", x_offset, y_offset, false);
       break;
     default:
-        comp_title_and_text("Settings", "");
+        comp_title_and_text("Settings", "", x_offset, y_offset, false);
       break;
   }
 }
@@ -78,8 +78,8 @@ static const View VIEW_SETTINGS = {
     NULL
 };
 
-static void app_renderPreview(void) {
-    comp_title_and_text("Settings", "");
+static void app_renderPreview(int16_t x_offset, int16_t y_offset) {
+    comp_title_and_text("Settings", "", x_offset, y_offset, false);
 }
 
 static void app_select(void) {

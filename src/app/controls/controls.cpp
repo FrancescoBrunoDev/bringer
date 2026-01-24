@@ -173,6 +173,17 @@ uint8_t controls_getTogglePin(void) { return s_nextBtn.pin; }
 // Read raw digital state of a pin (convenience wrapper)
 int controls_readPin(uint8_t pin) { return digitalRead(pin); }
 
+float controls_getConfirmHoldProgress(void) {
+  if (s_confirmBtn.stable == s_confirmBtn.idleState || s_confirmBtn.pressStart == 0 || s_confirmBtn.longFired) {
+    return 0.0f;
+  }
+  unsigned long held = millis() - s_confirmBtn.pressStart;
+  float p = (float)held / (float)s_longPressMs;
+  if (p > 1.0f) p = 1.0f;
+  if (p < 0.0f) p = 0.0f;
+  return p;
+}
+
 /* ---------- Polling + debounce logic ---------- */
 // Helper that handles a single button's state machine.
 // - b: reference to ButtonState

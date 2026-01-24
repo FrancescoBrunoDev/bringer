@@ -78,8 +78,8 @@ inline void oled_showStatus(const String &msg) { oled_showStatus(msg.c_str()); }
  * Show two lines in small font (useful to show IP and a sub-message).
  * Performs an immediate refresh.
  */
-void oled_showLines(const char *line1, const char *line2);
-inline void oled_showLines(const String &l1, const String &l2) { oled_showLines(l1.c_str(), l2.c_str()); }
+void oled_showLines(const char *line1, const char *line2, int16_t x_offset = 0, int16_t y_offset = 0, bool update = true);
+inline void oled_showLines(const String &l1, const String &l2) { oled_showLines(l1.c_str(), l2.c_str(), 0, 0, true); }
 
 /**
  * oled_showProgress
@@ -115,7 +115,7 @@ void oled_showWifiIcon(bool connected);
  * y_offset: vertical translation (0 is normal)
  * update: if true, calls display()
  */
-void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t y_offset = 0, bool update = true);
+void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t x_offset = 0, int16_t y_offset = 0, bool update = true);
 
 /**
  * oled_drawAppPreview
@@ -123,10 +123,10 @@ void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t y_offset 
  * y_offset: vertical translation (0 is normal)
  * update: if true, calls display()
  */
-void oled_drawBigText(const char *text, int16_t y_offset = 0, bool update = true);
+void oled_drawBigText(const char *text, int16_t x_offset = 0, int16_t y_offset = 0, bool update = true);
 
 enum ToastPos { TOAST_TOP, TOAST_BOTTOM };
-enum ToastIcon { TOAST_ICON_NONE, TOAST_ICON_UP, TOAST_ICON_DOWN, TOAST_ICON_SELECT };
+enum ToastIcon { TOAST_ICON_NONE, TOAST_ICON_UP, TOAST_ICON_DOWN, TOAST_ICON_SELECT, TOAST_ICON_BACK };
 
 /**
  * oled_showToast
@@ -137,6 +137,16 @@ enum ToastIcon { TOAST_ICON_NONE, TOAST_ICON_UP, TOAST_ICON_DOWN, TOAST_ICON_SEL
  * - icon: optional arrow or select icon
  */
 void oled_showToast(const char *msg, uint32_t ms, ToastPos pos = TOAST_BOTTOM, ToastIcon icon = TOAST_ICON_NONE);
+
+/**
+ * oled_showHoldToast
+ * Show a toast that slides based on a manual progress value (0.0 to 1.0).
+ * Useful for long-press feedback.
+ * - pos: vertical position
+ * - icon: icon to show
+ * - progress: 0.0 (off-screen) to 1.0 (fully in)
+ */
+void oled_showHoldToast(ToastPos pos, ToastIcon icon, float progress);
 
 /**
  * oled_drawActiveToast

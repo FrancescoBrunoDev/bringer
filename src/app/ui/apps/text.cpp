@@ -8,12 +8,12 @@
 
 static uint8_t s_index = 0;
 
-static void view_render(void) {
+static void view_render(int16_t x_offset, int16_t y_offset) {
     const char *txt = text_app_get_text(s_index);
     if (txt) {
-        comp_title_and_text("Text App", txt);
+        comp_title_and_text("Text App", txt, x_offset, y_offset, false);
     } else {
-        comp_title_and_text("Text App", "(no options)");
+        comp_title_and_text("Text App", "(no options)", x_offset, y_offset, false);
     }
 }
 
@@ -64,8 +64,8 @@ static const View VIEW_TEXT = {
     NULL // poll
 };
 
-static void app_renderPreview(void) {
-    comp_title_and_text("Text App", "");
+static void app_renderPreview(int16_t x_offset, int16_t y_offset) {
+    comp_title_and_text("Text App", "", x_offset, y_offset, false);
 }
 
 static void app_select(void) {

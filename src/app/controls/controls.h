@@ -64,5 +64,8 @@ uint8_t controls_getConfirmPin(void);
 // Return legacy names
 uint8_t controls_getClearPin(void);
 uint8_t controls_getTogglePin(void);
+// Returns the hold progress (0.0 to 1.0) of the confirm button relative to the long-press threshold
+float controls_getConfirmHoldProgress(void);
+
 // Read raw digital state of a pin (convenience wrapper)
 int controls_readPin(uint8_t pin);

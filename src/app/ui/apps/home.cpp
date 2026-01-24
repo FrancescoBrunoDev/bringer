@@ -3,8 +3,8 @@
 #include "../ui_internal.h"
 #include <stddef.h>
 
-static void home_renderPreview(void) {
-    comp_time_and_wifi();
+static void home_renderPreview(int16_t x_offset, int16_t y_offset) {
+    comp_time_and_wifi(x_offset, y_offset, false);
 }
 
 static void home_poll(void) {
