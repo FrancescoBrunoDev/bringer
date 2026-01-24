@@ -241,7 +241,7 @@ void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t y_offset,
   int16_t w = s_u8g2.getUTF8Width(time);
   int16_t h_asc = s_u8g2.getFontAscent();
   int16_t x = (OLED_WIDTH - w) / 2;
-  int16_t y = (OLED_HEIGHT / 2) + (h_asc / 2) - 3 + y_offset;
+  int16_t y = (OLED_HEIGHT / 2) + (h_asc / 2) + y_offset;
 
   s_u8g2.setCursor(x, y);
   s_u8g2.print(time);
@@ -275,7 +275,7 @@ void oled_drawBigText(const char *text, int16_t y_offset, bool update) {
     
     int16_t h_asc = s_u8g2.getFontAscent();
     int16_t x = (OLED_WIDTH - w) / 2;
-    int16_t y = (OLED_HEIGHT / 2) + (h_asc / 2) - 3 + y_offset;
+    int16_t y = (OLED_HEIGHT / 2) + (h_asc / 2) + y_offset;
 
     // Boundary check for rendering performance/glitches
     if (y < -32 || y > OLED_HEIGHT + 32) return;

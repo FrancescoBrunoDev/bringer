@@ -24,6 +24,7 @@ static bool s_initialDateShown = false;
 
 // Animation state
 static float s_animOffset = 0.0f;  // 0.0 = centered, 1.0 = incoming from bottom, -1.0 = incoming from top
+static float s_animVelocity = 0.0f;
 static size_t s_prevAppIndex = 0;
 
 // Internal rendering helper for carousel
@@ -111,6 +112,7 @@ void ui_next(void) {
         s_prevAppIndex = s_appIndex;
         s_appIndex = (s_appIndex + 1) % count;
         s_animOffset = 1.0f; // Incoming from bottom
+        s_animVelocity = 0.0f;
         oled_showToast(NULL, 600, TOAST_BOTTOM, TOAST_ICON_DOWN);
         ui_redraw();
     }
@@ -129,6 +131,7 @@ void ui_prev(void) {
         s_prevAppIndex = s_appIndex;
         s_appIndex = (s_appIndex + count - 1) % count;
         s_animOffset = -1.0f; // Incoming from top
+        s_animVelocity = 0.0f;
         oled_showToast(NULL, 600, TOAST_TOP, TOAST_ICON_UP);
         ui_redraw();
     }
@@ -183,6 +186,7 @@ void ui_init(void) {
   s_timeConfigured = false;
   s_initialDateShown = false;
   s_animOffset = 0.0f;
+  s_animVelocity = 0.0f;
   s_prevAppIndex = 0;
 
   oled_setMenuMode(true);
@@ -206,10 +210,20 @@ void ui_poll(void) {
       }
   }
 
-  // Handle Carousel Animation
-  if (abs(s_animOffset) > 0.001f) {
-      s_animOffset *= 0.6f; // Smooth decay
-      if (abs(s_animOffset) < 0.05f) s_animOffset = 0.0f;
+  // Handle Carousel Animation (Spring-damper / Snappy)
+  if (abs(s_animOffset) > 0.001f || abs(s_animVelocity) > 0.001f) {
+      const float k = 0.8f;   // Crisp speed
+      const float d = 0.42f;  // Reduced bounce factor
+      
+      float force = -k * s_animOffset;
+      s_animVelocity += force;
+      s_animVelocity *= d;
+      s_animOffset += s_animVelocity;
+
+      if (abs(s_animOffset) < 0.005f && abs(s_animVelocity) < 0.005f) {
+          s_animOffset = 0.0f;
+          s_animVelocity = 0.0f;
+      }
       ui_redraw();
   }
 
