@@ -64,3 +64,10 @@ IPAddress wifi_getIP() {
 bool wifi_isConnected() {
   return WiFi.status() == WL_CONNECTED;
 }
+
+String wifi_getSSID() {
+  if (WiFi.status() == WL_CONNECTED) {
+    return WiFi.SSID();
+  }
+  return String(AP_SSID);
+}

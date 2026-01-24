@@ -1,34 +1,22 @@
-#include "apps.h"
-#include "../common/components.h"
-#include "../ui_internal.h"
-#include "app/wifi/wifi.h"
+#include "settings_internal.h"
+#include "../apps.h"
+#include "../../common/components.h"
+#include "../../ui_internal.h"
 #include "drivers/epaper/display.h"
 #include "drivers/oled/oled.h"
 #include <stdio.h>
 
-enum SettingsItem : uint8_t { SET_IP = 0, SET_PARTIAL, SET_FULL_CLEAN, SET_COUNT };
+enum SettingsItem : uint8_t { SET_WIFI = 0, SET_EPAPER, SET_COUNT };
 static uint8_t s_index = 0;
 static uint8_t s_prevIndex = 0;
 
 static void render_item(uint8_t index, int16_t x, int16_t y) {
-  char buf[40];
   switch (index) {
-    case SET_IP: {
-      IPAddress ip = wifi_getIP();
-      if (ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] == 0) {
-        oled_drawBigText("IP: none", x, y, false);
-      } else {
-        snprintf(buf, sizeof(buf), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-        oled_drawBigText(buf, x, y, false);
-      }
+    case SET_WIFI:
+      oled_drawBigText("WIFI", x, y, false);
       break;
-    }
-    case SET_PARTIAL:
-      snprintf(buf, sizeof(buf), "Partial: %s", epd_getPartialEnabled() ? "ON" : "OFF");
-      oled_drawBigText(buf, x, y, false);
-      break;
-    case SET_FULL_CLEAN:
-      oled_drawBigText("Full clean", x, y, false);
+    case SET_EPAPER:
+      oled_drawBigText("E-PAPER", x, y, false);
       break;
   }
 }
@@ -56,19 +44,12 @@ static void view_prev(void) {
 
 static void view_select(void) {
   switch (s_index) {
-    case SET_IP:
+    case SET_WIFI:
+      ui_setView(&VIEW_SETTINGS_WIFI);
       break;
-    case SET_PARTIAL: {
-      bool cur = epd_getPartialEnabled();
-      epd_setPartialEnabled(!cur);
+    case SET_EPAPER:
+      ui_setView(&VIEW_SETTINGS_EPAPER);
       break;
-    }
-    case SET_FULL_CLEAN: {
-      if (!epd_forceClear_async()) {
-        if (oled_isAvailable()) oled_showStatus("EPD busy");
-      }
-      break;
-    }
   }
   ui_redraw();
 }
@@ -77,7 +58,7 @@ static void view_back(void) {
     ui_setView(NULL);
 }
 
-static const View VIEW_SETTINGS = {
+const View VIEW_SETTINGS_MAIN = {
     "Settings",
     view_render,
     view_next,
@@ -93,7 +74,7 @@ static void app_renderPreview(int16_t x_offset, int16_t y_offset) {
 
 static void app_select(void) {
     s_index = 0;
-    ui_setView(&VIEW_SETTINGS);
+    ui_setView(&VIEW_SETTINGS_MAIN);
 }
 
 const App APP_SETTINGS = {

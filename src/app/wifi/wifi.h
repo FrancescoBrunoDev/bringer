@@ -39,6 +39,9 @@ IPAddress wifi_getIP();
 // Return true when connected as STA to an access point
 bool wifi_isConnected();
 
+// Return the current SSID (STA or AP)
+String wifi_getSSID();
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

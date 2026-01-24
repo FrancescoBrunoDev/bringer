@@ -189,7 +189,7 @@ void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t x_offset,
   LOCK_OLED();
   if (!s_available) { UNLOCK_OLED(); return; }
   
-  s_u8g2.setFont(u8g2_font_logisoso32_tf); 
+  s_u8g2.setFont(u8g2_font_logisoso24_tf); 
   int16_t w = s_u8g2.getUTF8Width(time);
   int16_t x = (OLED_WIDTH - w) / 2 + x_offset;
   int16_t y = (OLED_HEIGHT / 2) + (s_u8g2.getFontAscent() / 2) + y_offset;
@@ -212,25 +212,71 @@ void oled_drawBigText(const char *text, int16_t x_offset, int16_t y_offset, bool
     LOCK_OLED();
     if (!s_available) { UNLOCK_OLED(); return; }
     
-    s_u8g2.setFont(u8g2_font_logisoso32_tf); 
+    // 1. Try single line scaling first (Reduced starting size)
+    s_u8g2.setFont(u8g2_font_logisoso24_tf); 
     int16_t w = s_u8g2.getUTF8Width(text);
-    if (w > OLED_WIDTH - 4) {
-        s_u8g2.setFont(u8g2_font_logisoso24_tf);
-        w = s_u8g2.getUTF8Width(text);
-    }
     if (w > OLED_WIDTH - 4) {
         s_u8g2.setFont(u8g2_font_profont17_tr);
         w = s_u8g2.getUTF8Width(text);
     }
-    
-    int16_t h_asc = s_u8g2.getFontAscent();
-    int16_t x = (OLED_WIDTH - w) / 2 + x_offset;
-    int16_t y = (OLED_HEIGHT / 2) + (h_asc / 2) + y_offset;
 
-    if (y < -32 || y > OLED_HEIGHT + 32 || x < -128 || x > OLED_WIDTH + 128) { UNLOCK_OLED(); return; }
+    if (w <= OLED_WIDTH - 4) {
+        // Fits on one line
+        int16_t h_asc = s_u8g2.getFontAscent();
+        int16_t x = (OLED_WIDTH - w) / 2 + x_offset;
+        int16_t y = (OLED_HEIGHT / 2) + (h_asc / 2) + y_offset;
+        if (y > -44 && y < OLED_HEIGHT + 44) {
+            s_u8g2.setCursor(x, y);
+            s_u8g2.print(text);
+        }
+    } else {
+        // Split into two lines
+        s_u8g2.setFont(u8g2_font_profont17_tr);
+        String s = text;
+        int split = -1;
+        int len = s.length();
+        int mid = len / 2;
+        
+        // Find best split point (space near middle)
+        for(int i=0; i < len/2; i++) {
+            if(mid-i >= 0 && s[mid-i] == ' ') { split = mid-i; break; }
+            if(mid+i < len && s[mid+i] == ' ') { split = mid+i; break; }
+        }
+        // No space? split in the middle (allow word split)
+        if(split == -1) split = mid;
 
-    s_u8g2.setCursor(x, y);
-    s_u8g2.print(text);
+        String s1 = s.substring(0, split);
+        String s2 = s.substring(split);
+        if(s2.startsWith(" ")) s2 = s2.substring(1);
+
+        int16_t w1 = s_u8g2.getUTF8Width(s1.c_str());
+        int16_t w2 = s_u8g2.getUTF8Width(s2.c_str());
+        
+        // Further scaling for lines if they are still too long
+        if (w1 > OLED_WIDTH - 4 || w2 > OLED_WIDTH - 4) {
+            s_u8g2.setFont(u8g2_font_profont12_tr);
+            w1 = s_u8g2.getUTF8Width(s1.c_str());
+            w2 = s_u8g2.getUTF8Width(s2.c_str());
+        }
+        if (w1 > OLED_WIDTH - 4 || w2 > OLED_WIDTH - 4) {
+            s_u8g2.setFont(u8g2_font_profont10_tr);
+            w1 = s_u8g2.getUTF8Width(s1.c_str());
+            w2 = s_u8g2.getUTF8Width(s2.c_str());
+        }
+
+        int16_t h_asc = s_u8g2.getFontAscent();
+        int16_t x1 = (OLED_WIDTH - w1) / 2 + x_offset;
+        int16_t x2 = (OLED_WIDTH - w2) / 2 + x_offset;
+        int16_t y1 = (OLED_HEIGHT / 2) - 3 + y_offset;
+        int16_t y2 = (OLED_HEIGHT / 2) + h_asc + y_offset;
+
+        if (y1 > -44 && y1 < OLED_HEIGHT + 44) {
+            s_u8g2.setCursor(x1, y1); s_u8g2.print(s1);
+        }
+        if (y2 > -44 && y2 < OLED_HEIGHT + 44) {
+            s_u8g2.setCursor(x2, y2); s_u8g2.print(s2);
+        }
+    }
 
     if (update) s_oled.display();
     UNLOCK_OLED();
@@ -248,6 +294,44 @@ void oled_drawHeader(const char *title, int16_t x_offset, int16_t y_offset) {
     s_u8g2.setCursor(x_offset + 4, y_offset + 10);
     s_u8g2.print(title);
     
+    UNLOCK_OLED();
+}
+
+void oled_drawToggle(const char *label, bool state, int16_t x_offset, int16_t y_offset) {
+    LOCK_OLED();
+    if (!s_available) { UNLOCK_OLED(); return; }
+
+    // 1. Draw Label
+    s_u8g2.setFont(u8g2_font_profont12_tr);
+    int16_t lw = s_u8g2.getUTF8Width(label);
+    int16_t lx = (OLED_WIDTH - lw) / 2 + x_offset;
+    int16_t ly = (OLED_HEIGHT / 2) - 8 + y_offset;
+    
+    if (ly > -20 && ly < OLED_HEIGHT + 20) {
+        s_u8g2.setCursor(lx, ly);
+        s_u8g2.print(label);
+    }
+
+    // 2. Draw Pill Switch
+    int16_t sw_w = 30;
+    int16_t sw_h = 14;
+    int16_t sx = (OLED_WIDTH - sw_w) / 2 + x_offset;
+    int16_t sy = (OLED_HEIGHT / 2) + 4 + y_offset;
+
+    if (sy > -20 && sy < OLED_HEIGHT + 20) {
+        // Outline
+        s_oled.drawRoundRect(sx, sy, sw_w, sw_h, sw_h/2, SSD1306_WHITE);
+        
+        if (state) {
+            // ON: Fill pill and put dot on the right
+            s_oled.fillRoundRect(sx, sy, sw_w, sw_h, sw_h/2, SSD1306_WHITE);
+            s_oled.fillCircle(sx + sw_w - (sw_h/2) - 1, sy + (sw_h/2), (sw_h/2) - 3, SSD1306_BLACK);
+        } else {
+            // OFF: Just outline and put dot on the left
+            s_oled.fillCircle(sx + (sw_h/2) + 1, sy + (sw_h/2), (sw_h/2) - 3, SSD1306_WHITE);
+        }
+    }
+
     UNLOCK_OLED();
 }
 

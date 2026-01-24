@@ -30,6 +30,10 @@ void comp_switch(const char *label, bool state) {
   oled_showLines(label, buf);
 }
 
+void comp_toggle(const char *label, bool state, int16_t x, int16_t y) {
+  oled_drawToggle(label, state, x, y);
+}
+
 void comp_button(const char *label) {
   oled_showLines(label, "");
 }
