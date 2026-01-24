@@ -125,19 +125,29 @@ void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t y_offset 
  */
 void oled_drawBigText(const char *text, int16_t y_offset = 0, bool update = true);
 
+enum ToastPos { TOAST_TOP, TOAST_BOTTOM };
+enum ToastIcon { TOAST_ICON_NONE, TOAST_ICON_UP, TOAST_ICON_DOWN, TOAST_ICON_SELECT };
+
 /**
  * oled_showToast
- * Show a transient, non-persistent overlay message for `ms` milliseconds.
- * This does an immediate redraw of the OLED to display the toast. Call
- * `oled_poll()` frequently from the main loop (or ui_poll) to clear expired
- * toasts and allow the UI to redraw.
+ * Show a transient, non-persistent overlay message.
+ * - msg: text to show (can be NULL if only showing icon)
+ * - ms: duration in milliseconds
+ * - pos: vertical position (top/bottom)
+ * - icon: optional arrow or select icon
  */
-void oled_showToast(const char *msg, uint32_t ms);
+void oled_showToast(const char *msg, uint32_t ms, ToastPos pos = TOAST_BOTTOM, ToastIcon icon = TOAST_ICON_NONE);
+
+/**
+ * oled_drawActiveToast
+ * Draw the current toast (if any) to the buffer.
+ * Should be called by ui_redraw before closing the frame.
+ */
+void oled_drawActiveToast(void);
 
 /**
  * oled_poll
- * Must be called frequently; returns true if a toast expired during this
- * call (so callers can trigger a UI redraw). If no toast is active it
- * returns false.
+ * Must be called frequently. Handles toast expiration and potential animations.
+ * Returns true if the display needs a redraw because a toast changed state (e.g. vanished).
  */
 bool oled_poll(void);

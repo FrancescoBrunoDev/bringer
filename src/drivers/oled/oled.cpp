@@ -34,9 +34,12 @@ static uint8_t s_i2c_addr = OLED_DEFAULT_I2C_ADDR;
 // so the menu view remains exclusive.
 static bool s_menu_mode = true;
 
-// Toast state (unused if toasts disabled)
+// Toast state
 static String s_toast_msg;
 static uint32_t s_toast_until = 0;
+static uint32_t s_toast_start = 0;
+static ToastPos s_toast_pos = TOAST_BOTTOM;
+static ToastIcon s_toast_icon = TOAST_ICON_NONE;
 
 void oled_setMenuMode(bool enable) {
   s_menu_mode = enable;
@@ -139,16 +142,6 @@ void oled_showStatus(const char *msg) {
   }
   // Use larger font for status (size 2); fallback to size 1 if text too wide
   _drawCenteredText(msg, 1);
-}
-
-bool oled_poll(void) {
-  if (!s_available) return false;
-  if (s_toast_until && millis() > s_toast_until) {
-    s_toast_until = 0;
-    // Redraw: do nothing here — caller should call ui_draw() after oled_poll
-    return true;
-  }
-  return false;
 }
 
 // Two-line display: useful for IP + status
@@ -293,32 +286,102 @@ void oled_drawBigText(const char *text, int16_t y_offset, bool update) {
     if (update) s_oled.display();
 }
 
-void oled_showToast(const char *msg, uint32_t ms) {
-  if (!s_available) {
-    Serial.print("OLED TOAST: ");
-    Serial.println(msg);
-    return;
-  }
-  s_toast_msg = String(msg);
-  s_toast_until = millis() + ms;
+static void _draw_toast_internal(int16_t offset) {
+  int16_t base_y = (s_toast_pos == TOAST_TOP) ? 4 + offset : OLED_HEIGHT - 22 + offset;
+  
+  s_u8g2.setFont(u8g2_font_profont12_tr);
+  int16_t text_w = s_toast_msg.length() > 0 ? s_u8g2.getUTF8Width(s_toast_msg.c_str()) : 0;
+  
+  int16_t total_w, tx;
+  int16_t radius = 9;
+  int16_t box_h = radius * 2;
 
-  // Draw overlay: small filled rect near bottom
-  s_oled.fillRect(2, OLED_HEIGHT - 20, OLED_WIDTH - 4, 18, SSD1306_WHITE);
+  if (text_w == 0) {
+      total_w = box_h;
+      tx = OLED_WIDTH - total_w - 6;
+      s_oled.fillCircle(tx + radius, base_y + radius, radius, SSD1306_WHITE);
+  } else {
+      total_w = text_w + 16;
+      if (s_toast_icon != TOAST_ICON_NONE) total_w += 14;
+      tx = OLED_WIDTH - total_w - 6;
+      s_oled.fillRoundRect(tx, base_y, total_w, box_h, radius, SSD1306_WHITE);
+  }
   
   s_u8g2.setForegroundColor(SSD1306_BLACK);
   s_u8g2.setBackgroundColor(SSD1306_WHITE);
   
-  s_u8g2.setFont(u8g2_font_profont11_tr);
+  int16_t cx = tx + radius;
+  int16_t cy = base_y + radius;
   
-  int16_t w = s_u8g2.getUTF8Width(s_toast_msg.c_str());
-  int16_t x = (OLED_WIDTH - w) / 2;
-  int16_t y = OLED_HEIGHT - 6; // baseline near bottom
-
-  s_u8g2.setCursor(x, y);
-  s_u8g2.print(s_toast_msg);
-  s_oled.display();
+  // Draw Icon in BLACK (smaller)
+  if (s_toast_icon != TOAST_ICON_NONE) {
+      switch(s_toast_icon) {
+          case TOAST_ICON_UP:
+              s_oled.fillTriangle(cx-3, cy+2, cx+3, cy+2, cx, cy-4, SSD1306_BLACK);
+              break;
+          case TOAST_ICON_DOWN:
+              s_oled.fillTriangle(cx-3, cy-2, cx+3, cy-2, cx, cy+4, SSD1306_BLACK);
+              break;
+          case TOAST_ICON_SELECT:
+              s_oled.fillCircle(cx, cy, 3, SSD1306_BLACK);
+              break;
+          default: break;
+      }
+      cx += 14;
+  }
+  
+  // Draw Text
+  if (s_toast_msg.length() > 0) {
+      s_u8g2.setCursor(cx - 3, base_y + 13);
+      s_u8g2.print(s_toast_msg.c_str());
+  }
   
   // Restore colors
   s_u8g2.setForegroundColor(SSD1306_WHITE);
   s_u8g2.setBackgroundColor(SSD1306_BLACK);
+}
+
+void oled_showToast(const char *msg, uint32_t ms, ToastPos pos, ToastIcon icon) {
+  if (!s_available) return;
+  s_toast_msg = msg ? msg : "";
+  s_toast_start = millis();
+  s_toast_until = s_toast_start + ms;
+  s_toast_pos = pos;
+  s_toast_icon = icon;
+}
+
+void oled_drawActiveToast(void) {
+  if (s_toast_until == 0) return;
+  
+  uint32_t now = millis();
+  uint32_t remaining = s_toast_until > now ? s_toast_until - now : 0;
+  
+  const uint32_t anim_dur = 250;
+  int16_t offset = 0;
+  
+  if (remaining < anim_dur) {
+      // Slide out: from 0 to 20
+      float p = 1.0f - ((float)remaining / anim_dur);
+      offset = (int16_t)(p * 20.0f);
+  }
+  
+  // If at top, offset should be negative (slide up to -20)
+  if (s_toast_pos == TOAST_TOP) {
+      _draw_toast_internal(-offset);
+  } else {
+      _draw_toast_internal(offset);
+  }
+}
+
+bool oled_poll(void) {
+  if (!s_available) return false;
+  if (s_toast_until == 0) return false;
+  
+  if (millis() > s_toast_until) {
+    s_toast_until = 0;
+    return true; // Redraw to clear
+  }
+  
+  // Keep redrawing for animations
+  return true;
 }

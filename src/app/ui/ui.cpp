@@ -88,6 +88,7 @@ void ui_redraw(void) {
       ui_renderAppPreview(s_prevAppIndex, offset_px > 0 ? offset_px - 64 : offset_px + 64);
   }
   
+  oled_drawActiveToast();
   oled_display();
 }
 
@@ -110,6 +111,7 @@ void ui_next(void) {
         s_prevAppIndex = s_appIndex;
         s_appIndex = (s_appIndex + 1) % count;
         s_animOffset = 1.0f; // Incoming from bottom
+        oled_showToast(NULL, 600, TOAST_BOTTOM, TOAST_ICON_DOWN);
         ui_redraw();
     }
 }
@@ -127,6 +129,7 @@ void ui_prev(void) {
         s_prevAppIndex = s_appIndex;
         s_appIndex = (s_appIndex + count - 1) % count;
         s_animOffset = -1.0f; // Incoming from top
+        oled_showToast(NULL, 600, TOAST_TOP, TOAST_ICON_UP);
         ui_redraw();
     }
 }
@@ -142,6 +145,7 @@ void ui_select(void) {
     const App** apps = registry_getApps();
     size_t count = registry_getCount();
     if (s_appIndex < count && apps[s_appIndex]->onSelect) {
+        oled_showToast("Selected", 800, TOAST_BOTTOM, TOAST_ICON_SELECT);
         apps[s_appIndex]->onSelect();
     }
 }
