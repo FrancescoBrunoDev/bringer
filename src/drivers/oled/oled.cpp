@@ -18,12 +18,14 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <U8g2_for_Adafruit_GFX.h>
 
 #include <stdio.h>
 
 // Create the Adafruit display instance.
 // Use -1 as reset pin (most breakouts don't expose a RST pin).
 static Adafruit_SSD1306 s_oled(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
+static U8G2_FOR_ADAFRUIT_GFX s_u8g2;
 
 // Internal availability flag and current I2C addr
 static bool s_available = false;
@@ -60,9 +62,15 @@ void oled_init(uint8_t sda, uint8_t scl, uint8_t address) {
 
   // Basic setup
   s_oled.clearDisplay();
-  s_oled.setTextColor(SSD1306_WHITE);
-  s_oled.setTextSize(1);
-  s_oled.display();
+  s_oled.display(); // clear immediately
+
+  // Init U8g2
+  s_u8g2.begin(s_oled);
+  // Fonts: https://github.com/olikraus/u8g2/wiki/fntlistall
+  // User requested ProFont
+  s_u8g2.setFont(u8g2_font_profont12_tr);
+  s_u8g2.setForegroundColor(SSD1306_WHITE);
+  s_u8g2.setBackgroundColor(SSD1306_BLACK);
 
   s_available = true;
   Serial.println("oled_init: OK");
@@ -81,21 +89,30 @@ void oled_clear(void) {
   s_oled.display();
 }
 
-// Helper: draw centered text at a given size
+// Helper: draw centered text
+// Uses U8g2 for drawing. Note: textSize arg is ignored as we rely on specific fonts now.
 static void _drawCenteredText(const char *msg, uint8_t textSize) {
   s_oled.clearDisplay();
-  s_oled.setTextSize(textSize);
-  s_oled.setTextColor(SSD1306_WHITE);
+  
+  // Select font based on "size" hint
+  // Size 2 originally meant "large status". Size 1 meant "normal".
+  if (textSize >= 2) {
+    s_u8g2.setFont(u8g2_font_profont17_tr); // Larger
+  } else {
+    s_u8g2.setFont(u8g2_font_profont12_tr); // Standard
+  }
 
-  int16_t x1, y1;
-  uint16_t w, h;
-  // getTextBounds signature: (str, x, y, &x1, &y1, &w, &h)
-  s_oled.getTextBounds(msg, 0, 0, &x1, &y1, &w, &h);
+  int16_t w = s_u8g2.getUTF8Width(msg);
+  int16_t h = s_u8g2.getFontAscent() - s_u8g2.getFontDescent(); // Approx height
+  
+  // Center X
+  int16_t x = (OLED_WIDTH - w) / 2;
+  // Center Y (U8g2 prints at baseline). 
+  // Baseline should be at cy + (ascent/2).
+  int16_t y = (OLED_HEIGHT / 2) + (s_u8g2.getFontAscent() / 2) - 2;
 
-  int16_t cx = (int16_t)((OLED_WIDTH - w) / 2) - x1;
-  int16_t cy = (int16_t)((OLED_HEIGHT - h) / 2) - y1;
-  s_oled.setCursor(cx, cy);
-  s_oled.print(msg);
+  s_u8g2.setCursor(x, y);
+  s_u8g2.print(msg);
   s_oled.display();
 }
 
@@ -113,7 +130,7 @@ void oled_showStatus(const char *msg) {
     return;
   }
   // Use larger font for status (size 2); fallback to size 1 if text too wide
-  _drawCenteredText(msg, 2);
+  _drawCenteredText(msg, 1);
 }
 
 bool oled_poll(void) {
@@ -137,24 +154,27 @@ void oled_showLines(const char *line1, const char *line2) {
   }
 
   s_oled.clearDisplay();
-  s_oled.setTextSize(1);
-  s_oled.setTextColor(SSD1306_WHITE);
+  
+  // Use a smaller readable font for multi-line
+  s_u8g2.setFont(u8g2_font_profont11_tr);
+  
+  int16_t h = s_u8g2.getFontAscent();
+  
+  // Line 1: Top half
+  int16_t w1 = s_u8g2.getUTF8Width(line1);
+  int16_t x1 = (OLED_WIDTH - w1) / 2;
+  int16_t y1 = 20; // approximate top baseline
 
-  // Line 1: near top (centered)
-  int16_t x1, y1;
-  uint16_t w, h;
-  s_oled.getTextBounds(line1, 0, 0, &x1, &y1, &w, &h);
-  int16_t x = (int16_t)((OLED_WIDTH - w) / 2) - x1;
-  int16_t y = 8; // small top margin
-  s_oled.setCursor(x, y);
-  s_oled.print(line1);
+  s_u8g2.setCursor(x1, y1);
+  s_u8g2.print(line1);
 
-  // Line 2: near bottom (centered)
-  s_oled.getTextBounds(line2, 0, 0, &x1, &y1, &w, &h);
-  x = (int16_t)((OLED_WIDTH - w) / 2) - x1;
-  y = OLED_HEIGHT - h - 8; // small bottom margin
-  s_oled.setCursor(x, y);
-  s_oled.print(line2);
+  // Line 2: Bottom half
+  int16_t w2 = s_u8g2.getUTF8Width(line2);
+  int16_t x2 = (OLED_WIDTH - w2) / 2;
+  int16_t y2 = OLED_HEIGHT - 10; // approximate bottom baseline
+
+  s_u8g2.setCursor(x2, y2);
+  s_u8g2.print(line2);
 
   s_oled.display();
 }
@@ -189,7 +209,7 @@ void oled_showProgress(const char *msg, int current, int total) {
     snprintf(buf, sizeof(buf), "%s", msg);
   }
   // Use a slightly smaller size to accommodate the extra text
-  _drawCenteredText(buf, 2);
+  _drawCenteredText(buf, 1);
 }
 
 void oled_showWifiIcon(bool connected) {
@@ -221,15 +241,23 @@ void oled_showToast(const char *msg, uint32_t ms) {
   s_toast_msg = String(msg);
   s_toast_until = millis() + ms;
 
-  // Draw overlay: small filled rect near bottom with text
-  s_oled.fillRect(4, OLED_HEIGHT - 18, OLED_WIDTH - 8, 14, SSD1306_WHITE);
-  s_oled.setTextColor(SSD1306_BLACK);
-  s_oled.setTextSize(1);
-  int16_t x1, y1; uint16_t w, h;
-  s_oled.getTextBounds(s_toast_msg.c_str(), 0, 0, &x1, &y1, &w, &h);
-  int16_t x = (int16_t)((OLED_WIDTH - w) / 2) - x1;
-  int16_t y = OLED_HEIGHT - 16;
-  s_oled.setCursor(x, y);
-  s_oled.print(s_toast_msg);
+  // Draw overlay: small filled rect near bottom
+  s_oled.fillRect(2, OLED_HEIGHT - 20, OLED_WIDTH - 4, 18, SSD1306_WHITE);
+  
+  s_u8g2.setForegroundColor(SSD1306_BLACK);
+  s_u8g2.setBackgroundColor(SSD1306_WHITE);
+  
+  s_u8g2.setFont(u8g2_font_profont11_tr);
+  
+  int16_t w = s_u8g2.getUTF8Width(s_toast_msg.c_str());
+  int16_t x = (OLED_WIDTH - w) / 2;
+  int16_t y = OLED_HEIGHT - 6; // baseline near bottom
+
+  s_u8g2.setCursor(x, y);
+  s_u8g2.print(s_toast_msg);
   s_oled.display();
+  
+  // Restore colors
+  s_u8g2.setForegroundColor(SSD1306_WHITE);
+  s_u8g2.setBackgroundColor(SSD1306_BLACK);
 }

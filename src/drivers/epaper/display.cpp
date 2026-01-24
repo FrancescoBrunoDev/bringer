@@ -16,11 +16,12 @@
 
 #include <SPI.h>
 #include <GxEPD2_3C.h>
-#include <Fonts/FreeMonoBold9pt7b.h>
+#include <U8g2_for_Adafruit_GFX.h>
 
 #include <algorithm>
 
 static GxEPD2_3C<GxEPD2_290_C90c, GxEPD2_290_C90c::HEIGHT> display(GxEPD2_290_C90c(PIN_CS, PIN_DC, PIN_RST, PIN_BUSY));
+static U8G2_FOR_ADAFRUIT_GFX s_u8g2_epd;
 
 // Internal state
 static String g_currentText = "Hello API";
@@ -39,6 +40,12 @@ void epd_init() {
 
   // Init e-paper display (keep it awake; we won't hibernate to serve future updates)
   display.init(115200, false, 50, false); // debug=false
+  
+  // Init U8g2 helper
+  s_u8g2_epd.begin(display);
+  s_u8g2_epd.setFont(u8g2_font_profont29_tr); // larger font for e-paper
+  s_u8g2_epd.setForegroundColor(GxEPD_RED);
+  s_u8g2_epd.setBackgroundColor(GxEPD_WHITE);
 
   if (ENABLE_FORCE_CLEAR) {
     if (oled_isAvailable()) {
@@ -142,15 +149,20 @@ void epd_displayText(const String &txt, uint16_t color, bool forceFull) {
   if (oled_isAvailable()) oled_showStatus("Rendering...");
 
   // Choose font and measure
-  display.setFont(&FreeMonoBold9pt7b);
-  int16_t bx = 0, by = 0;
-  uint16_t bw = 0, bh = 0;
-  display.getTextBounds(txt.c_str(), 0, 0, &bx, &by, &bw, &bh);
+  s_u8g2_epd.setFont(u8g2_font_profont29_tr);
+  s_u8g2_epd.setBackgroundColor(GxEPD_WHITE);
+  s_u8g2_epd.setForegroundColor(color);
 
-  // If text too wide, fallback to default font (smaller)
+  int16_t bw = s_u8g2_epd.getUTF8Width(txt.c_str());
+  int16_t bh = s_u8g2_epd.getFontAscent() - s_u8g2_epd.getFontDescent();
+  int16_t bx = 0; 
+  int16_t by = 0; // U8g2 logic is different, we use width directly
+
+  // If text too wide, fallback to smaller font
   if ((int)bw > (int)(display.width() - 8)) {
-    display.setFont(0);
-    display.getTextBounds(txt.c_str(), 0, 0, &bx, &by, &bw, &bh);
+    s_u8g2_epd.setFont(u8g2_font_profont17_tr);
+    bw = s_u8g2_epd.getUTF8Width(txt.c_str());
+    bh = s_u8g2_epd.getFontAscent() - s_u8g2_epd.getFontDescent();
   }
 
   // Compute centered cursor position
@@ -179,18 +191,24 @@ void epd_displayText(const String &txt, uint16_t color, bool forceFull) {
     display.firstPage();
     do {
       display.fillRect(rx, ry, rw, rh, GxEPD_WHITE);
-      display.setCursor(cx, cy);
-      display.setTextColor(color);
-      display.print(txt);
+      // Center calculation:
+      int16_t x = (display.width() - bw) / 2;
+      int16_t y = (display.height() / 2) + (s_u8g2_epd.getFontAscent()/2);
+      
+      s_u8g2_epd.setCursor(x, y);
+      s_u8g2_epd.print(txt);
     } while (display.nextPage());
   } else {
     display.setFullWindow();
     display.firstPage();
     do {
       display.fillScreen(GxEPD_WHITE);
-      display.setCursor(cx, cy);
-      display.setTextColor(color);
-      display.print(txt);
+      // Center calculation:
+      int16_t x = (display.width() - bw) / 2;
+      int16_t y = (display.height() / 2) + (s_u8g2_epd.getFontAscent()/2);
+      
+      s_u8g2_epd.setCursor(x, y);
+      s_u8g2_epd.print(txt);
     } while (display.nextPage());
   }
   unsigned long dt = millis() - t0;
