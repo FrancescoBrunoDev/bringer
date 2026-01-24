@@ -3,57 +3,57 @@
 /*
  * controls.h
  *
- * Gestione modulare dei pulsanti (Clear, Toggle Partial Update).
+ * Modular button handling (Clear, Toggle Partial Update).
  *
- * - Debounce software
- * - Event callbacks (pressione breve)
- * - Comportamento di default: Clear -> epd_clear(), Toggle -> epd_setPartialEnabled(!...)
+ * - Software debounce
+ * - Event callbacks (short press)
+ * - Default behavior: Clear -> epd_clear(), Toggle -> epd_setPartialEnabled(!...)
  *
- * Nota: i pulsanti sono gestiti come active-low (collegare l'altro piedino del pulsante a GND
- * e configurare il GPIO con INPUT_PULLUP).
+ * Note: Buttons are handled active-low (connect the other side of the button to GND
+ * and configure the GPIO with INPUT_PULLUP).
  */
 
 #include <Arduino.h>
 
 using controls_button_cb_t = void (*)(void);
 
-// Inizializza il gestore dei pulsanti.
-// - prevPin: GPIO del pulsante 'Prev' (default 14)
-// - nextPin: GPIO del pulsante 'Next' (default 16)
-// - confirmPin: GPIO del pulsante 'Confirm' (default 9)
-// - debounceMs: tempo di debounce in ms (default 50)
-// Nota: la chiamata è compatibile con la vecchia firma a 2 argomenti; se non viene fornito
-// il terzo parametro, `confirmPin` assume il valore di default.
+// Initialize the button handler.
+// - prevPin: GPIO for the 'Prev' button (default 14)
+// - nextPin: GPIO for the 'Next' button (default 16)
+// - confirmPin: GPIO for the 'Confirm' button (default 9)
+// - debounceMs: debounce time in ms (default 50)
+// Note: This call is compatible with the older 2-argument signature; if the
+// third parameter is not provided, `confirmPin` will use the default value.
 void controls_init(uint8_t prevPin = 14, uint8_t nextPin = 16, uint8_t confirmPin = 9, unsigned long debounceMs = 50);
 
-// Dev'essere chiamata frequentemente dal loop principale per gestire il polling dei pulsanti
+// Must be called frequently from the main loop to handle button polling
 void controls_poll(void);
 
-// Imposta le callback chiamate su pressione breve dei pulsanti (Prev / Next / Confirm)
+// Set callbacks invoked on short button presses (Prev / Next / Confirm)
 void controls_setPrevCallback(controls_button_cb_t cb);
 void controls_setNextCallback(controls_button_cb_t cb);
 void controls_setConfirmCallback(controls_button_cb_t cb);
 
-// (Opzionale) Callback per pressioni lunghe (long-press) - fallback globale
-// Se non sono impostate callback long-press per i singoli pulsanti, verrà usata questa
+// (Optional) Callback for long-press events (global fallback)
+// If individual long-press callbacks for buttons are not set, this will be used
 void controls_setLongPressCallback(controls_button_cb_t cb);
 
-// (Opzionale) Imposta callback per pressioni lunghe dei singoli pulsanti
+// (Optional) Set long-press callback for individual buttons
 void controls_setPrevLongCallback(controls_button_cb_t cb);
 void controls_setNextLongCallback(controls_button_cb_t cb);
 void controls_setConfirmLongCallback(controls_button_cb_t cb);
 
-// (Compat) Manteniamo i nomi storici per compatibilità; sono semplici wrapper
+// (Compat) Keep historic names for compatibility; these are simple wrappers
 void controls_setClearCallback(controls_button_cb_t cb);
 void controls_setToggleCallback(controls_button_cb_t cb);
 void controls_setClearLongCallback(controls_button_cb_t cb);
 void controls_setToggleLongCallback(controls_button_cb_t cb);
 
-// (Opzionale) Imposta soglia long-press in ms (default 1000 ms)
+// (Optional) Set long-press threshold in ms (default 1000 ms)
 void controls_setLongPressMs(unsigned long ms);
 
-// Se true, il modulo registra comportamenti di default.
-// Se false, solo le callback registrate verranno chiamate.
+// If true, the module registers default actions.
+// If false, only registered callbacks will be invoked.
 void controls_setUseDefaultActions(bool enable);
 
 // Diagnostic helpers

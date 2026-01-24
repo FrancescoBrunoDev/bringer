@@ -126,87 +126,87 @@ curl http://<esp-ip>/clear
 curl -X POST http://<esp-ip>/clear
 ```
 
-### Upload di immagini / matrici
-Puoi caricare immagini (o matrici pre-elaborate) e mostrarle sul display tramite l'endpoint `POST /image`. Lo schema JSON atteso è:
+### Image uploads / bitplanes
+You can upload images (or pre-processed bitplanes) and display them on the panel via the `POST /image` endpoint. Expected JSON schema:
 
 ```json
 {
   "width": 128,
   "height": 296,
-  "format": "3c",     // "bw" o "3c"
-  "data": "<BASE64>", // base64 dei bitplane (bw: 1 piano; 3c: piano nero + piano rosso concatenati)
-  "forceFull": false  // opzionale, se true forza un full update
+  "format": "3c",     // "bw" or "3c"
+  "data": "<BASE64>", // base64 of the bitplanes (bw: 1 plane; 3c: black plane + red plane concatenated)
+  "forceFull": false  // optional, if true forces a full update
 }
 ```
 
-Note sul formato dei bitplane (3c):
-- I bitplane devono essere raw bytes: primo piano = nero (width*height/8 byte), secondo piano = rosso (stessa dimensione).
-- L'ordine è row‑major e ogni byte è MSB‑first (il bit più significativo corrisponde al pixel più a sinistra di ogni gruppo di 8 pixel).
-- `format: "bw"` invia un solo piano (nero/bianco) di width*height/8 byte.
+Notes on the bitplane format (3c):
+- Bitplanes must be raw bytes: first plane = black (width*height/8 bytes), second plane = red (same size).
+- Order is row-major and each byte is MSB-first (the most significant bit corresponds to the left-most pixel in each group of 8 pixels).
+- `format: "bw"` sends a single black/white plane of width*height/8 bytes.
 
-Script di aiuto (suggerito)
-- Ho aggiunto uno script d'esempio che converte una PNG in 1-bit / 3-color bitplanes e le carica via HTTP:
+Helper script (suggested)
+- An example script is included to convert a PNG into 1-bit / 3-color bitplanes and upload them via HTTP:
   - `bringer/examples/esp32c6-epaper-api/tools/upload_image.py`
-  - Richiede `Pillow` e `requests` (installali con `pip install pillow requests`)
-  - Esempio d'uso:
+  - Requires `Pillow` and `requests` (install with `pip install pillow requests`)
+  - Usage:
 ```bash
 python3 tools/upload_image.py --file myimage.png --url http://<esp-ip>/image --format 3c --width 128 --height 296 --force-full
 ```
 
-Script per generare immagini di test
-- Puoi generare un paio di sample direttamente con lo script incluso:
+Test image generation
+- Generate sample images with the included script:
 ```bash
 python3 tools/gen_sample_images.py --out images
 ```
-Questo crea:
-- `images/sample_bw.png`  (bianco/nero)
-- `images/sample_3c.png`  (contiene aree rosse per testare il canale rosso)
+This creates:
+- `images/sample_bw.png`  (black/white)
+- `images/sample_3c.png`  (contains red areas to test the red channel)
 
-Suggerimenti pratici
-- L'upload base64 è semplice e robusto; per file più grandi posso aggiungere supporto chunked o upload binario (multipart).
-- Se vedi artefatti dopo l'upload, passa `forceFull=true` per ottenere un aggiornamento completo e rimuovere ghosting.
-- Se preferisci, posso integrare il decoding PNG/JPEG direttamente sul dispositivo (richiede librerie aggiuntive e più RAM), oppure migliorare il client Python con opzioni di dithering/threshold per la conversione.
+Practical tips
+- Base64 upload is simple and robust; for larger files I can add chunked or multipart upload support.
+- If you see artifacts after an upload, set `forceFull=true` to force a full refresh and remove ghosting.
+- If desired, PNG/JPEG decoding could be implemented on-device (requires additional libraries and more RAM), or the Python client can be improved with dithering/threshold options optimized for e-paper.
 
 
-### Upload di immagini / matrici
-Puoi caricare immagini (o matrici pre-elaborate) e mostrarle sul display tramite l'endpoint `POST /image`. Lo schema JSON atteso è:
+### Image uploads / bitplanes
+You can upload images (or pre-processed bitplanes) and display them via the `POST /image` endpoint. Expected JSON schema:
 
 ```json
 {
   "width": 128,
   "height": 296,
-  "format": "3c",     // "bw" o "3c"
-  "data": "<BASE64>", // base64 dei bitplane (bw: 1 piano; 3c: piano nero + piano rosso concatenati)
-  "forceFull": false  // opzionale, se true forza un full update
+  "format": "3c",     // "bw" or "3c"
+  "data": "<BASE64>", // base64 of the bitplanes (bw: 1 plane; 3c: black plane + red plane concatenated)
+  "forceFull": false  // optional, if true forces a full update
 }
 ```
 
-Note sul formato dei bitplane (3c):
-- I bitplane devono essere raw bytes: primo piano = nero (width*height/8 bytes), secondo piano = rosso (stessa dimensione).
-- L'ordine è row‑major e ogni byte è MSB‑first (il bit più significativo corrisponde al pixel più a sinistra della fetta da 8 pixel).
-- `format: "bw"` invia un solo piano (nero/bianco) di width*height/8 byte.
+Notes on the bitplane format (3c):
+- Bitplanes must be raw bytes: first plane = black (width*height/8 bytes), second plane = red (same size).
+- Order is row-major and each byte is MSB-first (the most significant bit corresponds to the left-most pixel in each group of 8 pixels).
+- `format: "bw"` sends a single black/white plane of width*height/8 bytes.
 
-Esempio curl (upload di JSON con base64):
+curl example (uploading JSON with base64):
 ```bash
 curl -X POST http://<esp-ip>/image \
   -H "Content-Type: application/json" \
   -d '{"width":128,"height":296,"format":"3c","data":"<BASE64_DATA>","forceFull":true}'
 ```
 
-Script di aiuto (suggerito)
-- Ho aggiunto uno script d'esempio (client) che converte una PNG in 1-bit / 3-color bitplanes e le carica via HTTP:
+Helper script (suggested)
+- An example client script converts a PNG into 1-bit / 3-color bitplanes and uploads them via HTTP:
   - `bringer/examples/esp32c6-epaper-api/tools/upload_image.py`
-  - Richiede `Pillow` e `requests` (pip install pillow requests)
-  - Esempio:
+  - Requires `Pillow` and `requests` (pip install pillow requests)
+  - Example:
 ```bash
 python3 tools/upload_image.py --file myimage.png --url http://<esp-ip>/image --format 3c --width 128 --height 296 --force-full
 ```
-- Lo script crea i piani (nero/rosso), li concatena e invia il payload in JSON (base64) al dispositivo.
+- The script creates the bitplanes (black/red), concatenates them and sends the payload as base64 JSON to the device.
 
-Suggerimenti pratici
-- L'upload base64 è semplice e robusto; per file più grandi puoi inviare in chunk (posso aggiungere un endpoint chunked se vuoi).
-- Se vedi artefatti dopo upload, prova a impostare `forceFull=true` per ottenere un aggiornamento completo e rimuovere ghosting.
-- Se vuoi, aggiungo la decodifica PNG/JPEG direttamente sul dispositivo (richiede librerie aggiuntive e più RAM), oppure posso migliorare lo script Python per gestire palette, dithering e anti‑aliasing ottimizzati per e‑paper.
+Practical tips
+- Base64 upload is simple and robust; for larger files you can upload in chunks (a chunked endpoint could be added).
+- If you see artifacts after upload, try setting `forceFull=true` to force a full refresh and remove ghosting.
+- Optional: implement PNG/JPEG decoding on-device (requires extra libraries and RAM), or enhance the Python script to handle palettes, dithering and anti-aliasing optimized for e-paper.
 
 ---
 

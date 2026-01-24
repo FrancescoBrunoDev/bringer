@@ -131,6 +131,7 @@ Agent rules (how automated agents should operate)
 - Never commit binary build artefacts (PlatformIO creates `.pio` and `build` directories — keep these out of git). Respect existing `.gitignore`.
 - If creating or editing code:
   - Follow the style rules above.
+  - Write all code comments and inline documentation in English. When editing existing files, translate non-English comments to English while preserving meaning and context.
   - Add or update unit tests for non-trivial logic when possible.
   - Keep changes local to one concern per commit (small, reviewable commits).
 

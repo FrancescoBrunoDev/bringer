@@ -3,18 +3,18 @@
 /*
  * oled.h
  *
- * Helper per un piccolo display OLED SSD1306 (es. 128x64) con interfaccia I2C.
+ * Helper for a small SSD1306 OLED (e.g. 128x64) over I2C.
  *
- * - Inizializza il bus I2C e il display
- * - Fornisce API semplici per mostrare messaggi di stato (es. "Clearing", "Loading", "Done")
- * - Fornisce una funzione di fallback per verificare se il display è operativo
+ * - Initializes the I2C bus and the display
+ * - Provides simple APIs to show status messages (e.g. "Clearing", "Loading", "Done")
+ * - Provides a fallback function to check whether the display is operational
  *
- * Uso tipico:
- *   oled_init();                 // opzionale: passare SDA/SCL se non si usano i default
+ * Typical usage:
+ *   oled_init();                 // optional: pass SDA/SCL if not using defaults
  *   oled_showStatus(\"Loading\");
  *   oled_clear();
  *
- * Nota: l'implementazione usa l'indirizzo I2C 0x3C di default (molti moduli SSD1306).
+ * Note: implementation uses I2C address 0x3C by default (many SSD1306 modules).
  */
 
 #include <Arduino.h>
@@ -22,20 +22,20 @@
 
 
 
-// Defaults (modificabili via parametri di oled_init)
-static constexpr uint8_t OLED_DEFAULT_SDA = 15;       // suggerito: SDA -> GPIO15
-static constexpr uint8_t OLED_DEFAULT_SCL = 22;       // suggerito: SCL -> GPIO22
+// Defaults (modifiable via oled_init parameters)
+static constexpr uint8_t OLED_DEFAULT_SDA = 15;       // suggested: SDA -> GPIO15
+static constexpr uint8_t OLED_DEFAULT_SCL = 22;       // suggested: SCL -> GPIO22
 static constexpr uint8_t OLED_DEFAULT_I2C_ADDR = 0x3C;
 static constexpr uint8_t OLED_WIDTH = 128;
 static constexpr uint8_t OLED_HEIGHT = 64;
 
 /**
  * oled_init
- * Inizializza il bus I2C (Wire) e il display SSD1306.
- * - sda, scl: pin GPIO per SDA/SCL (Wire.begin(sda, scl))
- * - address: indirizzo I2C (tipicamente 0x3C)
+ * Initialize the I2C bus (Wire) and the SSD1306 display.
+ * - sda, scl: GPIO pins for SDA/SCL (Wire.begin(sda, scl))
+ * - address: I2C address (typically 0x3C)
  *
- * Dopo una inizializzazione fallita, oled_isAvailable() ritornerà false.
+ * After a failed initialization, oled_isAvailable() will return false.
  */
 void oled_init(uint8_t sda = OLED_DEFAULT_SDA,
                uint8_t scl = OLED_DEFAULT_SCL,
@@ -43,57 +43,57 @@ void oled_init(uint8_t sda = OLED_DEFAULT_SDA,
 
 /**
  * oled_isAvailable
- * Ritorna true se l'OLED è stato inizializzato correttamente e può essere usato.
+ * Returns true if the OLED was successfully initialized and can be used.
  */
 bool oled_isAvailable(void);
 
 /**
  * oled_clear
- * Pulisce lo schermo (passata bianca).
+ * Clear the screen (fill with white).
  */
 void oled_clear(void);
 
 /**
  * oled_showStatus
- * Mostra un messaggio di stato centrato in carattere grande (es. \"Clearing\", \"Loading...\").
- * Viene eseguito immediatamente un display() per aggiornare lo schermo.
+ * Show a centered status message in large font (e.g. "Clearing", "Loading...").
+ * An immediate display() is performed to update the screen.
  */
 void oled_showStatus(const char *msg);
 inline void oled_showStatus(const String &msg) { oled_showStatus(msg.c_str()); }
 
 /**
  * oled_showLines
- * Mostra due righe in carattere piccolo (utile per mostrare IP e un messaggio sotto).
- * Esegue il refresh immediato.
+ * Show two lines in small font (useful to show IP and a sub-message).
+ * Performs an immediate refresh.
  */
 void oled_showLines(const char *line1, const char *line2);
 inline void oled_showLines(const String &l1, const String &l2) { oled_showLines(l1.c_str(), l2.c_str()); }
 
 /**
  * oled_showProgress
- * Mostra un messaggio + progresso numerico (es. \"Clearing 1/4\").
+ * Show a message + numeric progress (e.g. "Clearing 1/4").
  */
 void oled_showProgress(const char *msg, int current, int total);
 inline void oled_showProgress(const String &msg, int current, int total) { oled_showProgress(msg.c_str(), current, total); }
 
 /**
  * oled_setMenuMode
- * Quando abilitato, l'OLED è riservato alla UI del menu e i messaggi di stato/progresso
- * provenienti da altri moduli (es. e-paper) verranno soppressi.
+ * When enabled, the OLED is reserved for the menu UI and status/progress messages
+ * from other modules (e.g. e-paper) will be suppressed.
  */
 void oled_setMenuMode(bool enable);
 
 /**
  * oled_isMenuMode
- * Ritorna true se l'OLED è attualmente in modalità "menu".
+ * Returns true if the OLED is currently in "menu" mode.
  */
 bool oled_isMenuMode(void);
 
 /**
  * oled_showWifiIcon
- * Disegna una semplice icona WiFi (semicerchi + puntino) al centro del display.
- * - connected: se true, disegna i semicerchi normalmente; se false, disegna lo stesso
- *   ma l'icona può essere usata per indicare stato (caller decide il testo o serial fallback).
+ * Draw a simple WiFi icon (semicircles + dot) at the center of the display.
+ * - connected: if true, draws the semicircles normally; if false, draws the same
+ *   but the icon can be used to indicate state (caller decides text or serial fallback).
  */
 void oled_showWifiIcon(bool connected);
 

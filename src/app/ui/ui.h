@@ -3,18 +3,18 @@
 /*
  * ui.h
  *
- * Semplice menu UI che usa l'OLED SSD1306 per la navigazione:
+ * Simple menu UI using the SSD1306 OLED for navigation:
  *
- * - Pulsante Prev (short): scorre al precedente elemento del menu
- * - Pulsante Next (short): scorre al prossimo elemento del menu
- * - Pulsante Confirm: short press = seleziona/conferma, long press = annulla / torna indietro
+ * - Prev (short): scroll to previous menu item
+ * - Next (short): scroll to next menu item
+ * - Confirm: short press = select/confirm, long press = cancel/go back
  *
- * Inizialmente viene mostrato il menu 'Settings' con due voci:
+ * The initial menu shows 'Settings' with two entries:
  *  - Partial update ON/OFF
- *  - Full cleaning (avvia una pulizia completa / recovery clear)
+ *  - Full cleaning (runs a recovery-style full clear)
  *
- * L'implementazione registra le callback sui pulsanti (attraverso il modulo
- * `controls`) e aggiorna l'OLED tramite le funzioni in `drivers/oled`.
+ * The implementation registers button callbacks (via the `controls` module)
+ * and updates the OLED using functions in `drivers/oled`.
  */
 
 #include <Arduino.h>
@@ -23,28 +23,28 @@
 extern "C" {
 #endif
 
-// Inizializza la UI: registra callback dei pulsanti e mostra il menu iniziale.
+// Initialize the UI: register button callbacks and show the initial menu.
 void ui_init(void);
 
-// Poll della UI: chiamare frequentemente (es. dal loop) per aggiornare orologio e stato WiFi
+// UI poll: call frequently (e.g. from loop) to update clock and WiFi status
 void ui_poll(void);
 
-// Scorri al prossimo elemento del menu (pulsante Next breve)
+// Scroll to next menu item (short Next press)
 void ui_next(void);
 
-// Scorri al precedente elemento del menu (pulsante Prev breve)
+// Scroll to previous menu item (short Prev press)
 void ui_prev(void);
 
-// Seleziona l'elemento attualmente evidenziato / Conferma (pulsante Confirm breve)
+// Select the currently highlighted item / Confirm (short Confirm press)
 void ui_select(void);
 
-// Torna indietro / Annulla (pulsante Confirm long press)
+// Go back / Cancel (Confirm long press)
 void ui_back(void);
 
 // Introspection helpers for the web UI
 int ui_getState(void);
 int ui_getIndex(void);
-// Restituisce true se l'UI è attualmente nella schermata interna del Text App
+// Returns true if the UI is currently in the Text App screen
 bool ui_isInApp(void);
 
 #ifdef __cplusplus
