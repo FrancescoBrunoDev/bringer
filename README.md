@@ -30,7 +30,7 @@ Code layout
     - `oled/` — `oled.h`, `oled.cpp` — SSD1306 driver and status helpers
   - `app/` — application code:
     - `server/` — `server.h`, `server.cpp` — HTTP server and request handlers
-    - `ui/` — `ui.h`, `ui.cpp` — OLED-driven menu UI (Button A: scroll; Button B: select / long press)
+    - `ui/` — `ui.h`, `ui.cpp` — OLED-driven menu UI (Prev / Next / Confirm buttons; confirm short = select, confirm long = cancel/back)
     - `controls/` — `controls.h`, `controls.cpp` — button/input controls & callbacks
     - `wifi/` — `wifi.h`, `wifi.cpp` — WiFi connect / AP fallback helpers
   - `utils/` — `base64.h`, `base64.cpp` — base64 decoder used by image uploads
@@ -40,24 +40,26 @@ Code layout
 ---
 ## OLED menu UI
 
-This project includes a simple menu-driven UI that uses the SSD1306 OLED and the two hardware buttons (A and B) for quick local control:
+This project includes a simple menu-driven UI that uses the SSD1306 OLED and three hardware buttons (Prev, Next, Confirm) for quick local control:
 
-- Button A (short press): scroll between menu items
-- Button B (short press): select / activate the current item
-- Button B (long press): go back / exit menu
+- Prev (short press): scroll to previous menu item
+- Next (short press): scroll to next menu item
+- Confirm (short press): select / activate the current item
+- Confirm (long press): go back / cancel
 
 Initial screen (shown on the OLED at startup):
 - Home — shows WiFi status and a clock:
   - If WiFi is connected the top line shows the assigned IP address; otherwise it shows "No WiFi".
   - The clock displays HH:MM:SS. When WiFi is available the device attempts to sync time via NTP; if unavailable the display falls back to a local uptime-based clock.
-- Enter the Settings menu: press Button A (short press).
+- Enter the Settings menu: press Next (short press).
   - Settings:
     - Partial update: toggles e-paper partial updates (fast updates)
     - Full cleaning: runs a recovery-style full clear (white/black cycles)
 - Menu navigation:
-  - Button A (short press): scroll between entries
-  - Button B (short press): select the current entry
-  - Button B (long press): go back to the Home screen
+  - Prev (short press): scroll to previous entry
+  - Next (short press): scroll between entries
+  - Confirm (short press): select the current entry
+  - Confirm (long press): go back to the Home screen
 
 Note: the OLED is reserved for the menu/home UI by default — status/progress messages from the e-paper module (e.g. "Loading...", "Clearing 1/4") are suppressed so the OLED remains dedicated to the UI.
 

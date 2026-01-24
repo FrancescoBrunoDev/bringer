@@ -6,6 +6,7 @@
 struct View {
   void (*render)(void);
   void (*onNext)(void);
+  void (*onPrev)(void);
   void (*onSelect)(void);
   void (*onBack)(void);
   void (*poll)(void);

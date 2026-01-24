@@ -5,9 +5,9 @@
  *
  * Semplice menu UI che usa l'OLED SSD1306 per la navigazione:
  *
- * - Pulsante A (Clear)  : scorre tra le voci del menu
- * - Pulsante B (Toggle) : seleziona la voce corrente
- * - Pulsante B (long)   : torna indietro / esce dal menu
+ * - Pulsante Prev (short): scorre al precedente elemento del menu
+ * - Pulsante Next (short): scorre al prossimo elemento del menu
+ * - Pulsante Confirm: short press = seleziona/conferma, long press = annulla / torna indietro
  *
  * Inizialmente viene mostrato il menu 'Settings' con due voci:
  *  - Partial update ON/OFF
@@ -29,13 +29,16 @@ void ui_init(void);
 // Poll della UI: chiamare frequentemente (es. dal loop) per aggiornare orologio e stato WiFi
 void ui_poll(void);
 
-// Scorri al prossimo elemento del menu (pulsante A breve)
+// Scorri al prossimo elemento del menu (pulsante Next breve)
 void ui_next(void);
 
-// Seleziona l'elemento attualmente evidenziato (pulsante B breve)
+// Scorri al precedente elemento del menu (pulsante Prev breve)
+void ui_prev(void);
+
+// Seleziona l'elemento attualmente evidenziato / Conferma (pulsante Confirm breve)
 void ui_select(void);
 
-// Torna indietro / esci dal menu (pulsante B long press)
+// Torna indietro / Annulla (pulsante Confirm long press)
 void ui_back(void);
 
 // Introspection helpers for the web UI

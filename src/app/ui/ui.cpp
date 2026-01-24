@@ -5,9 +5,10 @@
  * Simple menu-driven UI that leverages the SSD1306 OLED for quick navigation.
  *
  * Controls:
- *  - Button A (Clear)  : scroll between menu items (short press)
- *  - Button B (Toggle) : select current item (short press)
- *  - Button B (Toggle) : go back / exit menu (long press)
+ *  - Prev (short): scroll to previous menu item
+ *  - Next (short): scroll to next menu item
+ *  - Confirm (short): select/activate current item
+ *  - Confirm (long): go back / cancel
  *
  * Initial screen: "Settings" with two submenu items:
  *  - Partial update: ON/OFF   (toggles runtime partial updates)
@@ -40,27 +41,32 @@ enum SettingsItem : uint8_t { SET_IP = 0, SET_PARTIAL, SET_FULL_CLEAN, SET_COUNT
 // Forward view handlers and renderers (small, kept local)
 static void view_home_render(void);
 static void view_home_next(void);
+static void view_home_prev(void);
 static void view_placeholder_render(void);
 static void view_placeholder_next(void);
+static void view_placeholder_prev(void);
 static void view_placeholder_select(void);
 static void view_text_menu_render(void);
 static void view_text_menu_next(void);
+static void view_text_menu_prev(void);
 static void view_text_menu_select(void);
 static void view_text_menu_back(void);
 static void view_settings_overview_render(void);
 static void view_settings_overview_next(void);
+static void view_settings_overview_prev(void);
 static void view_settings_overview_select(void);
 static void view_settings_menu_render(void);
 static void view_settings_menu_next(void);
+static void view_settings_menu_prev(void);
 static void view_settings_menu_select(void);
 static void view_settings_menu_back(void);
 
 // Define the views (externs declared in views.h)
-const View VIEW_HOME = { view_home_render, view_home_next, NULL, NULL, NULL };
-const View VIEW_PLACEHOLDER = { view_placeholder_render, view_placeholder_next, view_placeholder_select, NULL, NULL };
-const View VIEW_TEXT_MENU = { view_text_menu_render, view_text_menu_next, view_text_menu_select, view_text_menu_back, NULL };
-const View VIEW_SETTINGS_OVERVIEW = { view_settings_overview_render, view_settings_overview_next, view_settings_overview_select, NULL, NULL };
-const View VIEW_SETTINGS_MENU = { view_settings_menu_render, view_settings_menu_next, view_settings_menu_select, view_settings_menu_back, NULL };
+const View VIEW_HOME = { view_home_render, view_home_next, view_home_prev, NULL, NULL, NULL };
+const View VIEW_PLACEHOLDER = { view_placeholder_render, view_placeholder_next, view_placeholder_prev, view_placeholder_select, NULL, NULL };
+const View VIEW_TEXT_MENU = { view_text_menu_render, view_text_menu_next, view_text_menu_prev, view_text_menu_select, view_text_menu_back, NULL };
+const View VIEW_SETTINGS_OVERVIEW = { view_settings_overview_render, view_settings_overview_next, view_settings_overview_prev, view_settings_overview_select, NULL, NULL };
+const View VIEW_SETTINGS_MENU = { view_settings_menu_render, view_settings_menu_next, view_settings_menu_prev, view_settings_menu_select, view_settings_menu_back, NULL };
 
 // Current view pointer and minimal shared state
 static const View *s_currentView = &VIEW_HOME;
@@ -85,6 +91,7 @@ static void ui_redraw(void) {
 // View implementations (small wrappers that use components)
 static void view_home_render(void) { comp_time_and_wifi(); }
 static void view_home_next(void) { s_currentView = &VIEW_PLACEHOLDER; s_index = 0; ui_redraw(); }
+static void view_home_prev(void) { s_currentView = &VIEW_SETTINGS_OVERVIEW; s_index = 0; ui_redraw(); }
 
 static void view_placeholder_render(void) {
   // Overview: show app title only. Select will enter the app menu.
@@ -94,6 +101,13 @@ static void view_placeholder_render(void) {
 static void view_placeholder_next(void) {
   // Move to Settings overview (follow original menu order)
   s_currentView = &VIEW_SETTINGS_OVERVIEW;
+  s_index = 0;
+  ui_redraw();
+}
+
+static void view_placeholder_prev(void) {
+  // Move back to Home (reverse of next)
+  s_currentView = &VIEW_HOME;
   s_index = 0;
   ui_redraw();
 }
@@ -121,6 +135,16 @@ static void view_text_menu_next(void) {
     return;
   }
   s_index = (s_index + 1) % (uint8_t)count;
+  ui_redraw();
+}
+
+static void view_text_menu_prev(void) {
+  size_t count = text_app_get_count();
+  if (count == 0) {
+    ui_redraw();
+    return;
+  }
+  s_index = (s_index + (uint8_t)count - 1) % (uint8_t)count;
   ui_redraw();
 }
 
@@ -152,6 +176,7 @@ static void view_text_menu_back(void) {
 
 static void view_settings_overview_render(void) { comp_title_and_text("Settings", ""); }
 static void view_settings_overview_next(void) { s_currentView = &VIEW_HOME; s_index = 0; ui_redraw(); }
+static void view_settings_overview_prev(void) { s_currentView = &VIEW_PLACEHOLDER; s_index = 0; ui_redraw(); }
 static void view_settings_overview_select(void) { s_currentView = &VIEW_SETTINGS_MENU; s_index = 0; ui_redraw(); }
 
 static void view_settings_menu_render(void) {
@@ -181,6 +206,7 @@ static void view_settings_menu_render(void) {
 }
 
 static void view_settings_menu_next(void) { s_index = (s_index + 1) % SET_COUNT; ui_redraw(); }
+static void view_settings_menu_prev(void) { s_index = (s_index + SET_COUNT - 1) % SET_COUNT; ui_redraw(); }
 
 static void view_settings_menu_select(void) {
   switch (s_index) {
@@ -210,9 +236,10 @@ void ui_init(void) {
   controls_setUseDefaultActions(false);
 
   // Register navigation callbacks:
-  controls_setClearCallback(ui_next);
-  controls_setToggleCallback(ui_select);
-  controls_setToggleLongCallback(ui_back);
+  controls_setPrevCallback(ui_prev);
+  controls_setNextCallback(ui_next);
+  controls_setConfirmCallback(ui_select);
+  controls_setConfirmLongCallback(ui_back);
 
   // Start on the home view
   s_index = 0;
@@ -231,6 +258,14 @@ void ui_next(void) {
   // Delegate to current view's onNext handler if present
   if (s_currentView && s_currentView->onNext) {
     s_currentView->onNext();
+    return;
+  }
+}
+
+void ui_prev(void) {
+  // Delegate to current view's onPrev handler if present
+  if (s_currentView && s_currentView->onPrev) {
+    s_currentView->onPrev();
     return;
   }
 }

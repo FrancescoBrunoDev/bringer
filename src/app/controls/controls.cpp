@@ -1,11 +1,12 @@
 /*
  * controls.cpp
  *
- * Implementation of a small, robust two-button handler (debounce + optional long-press)
- * - Default actions:
- *     Clear button -> epd_clear()
- *     Toggle button -> epd_setPartialEnabled(!epd_getPartialEnabled())
- * - Custom callbacks can be registered for both short press and a single long-press callback
+ * Implementation of a small, robust three-button handler (debounce + optional long-press)
+ * - Buttons:
+ *     Prev    -> typically navigate to previous item (short press)
+ *     Next    -> typically navigate to next item (short press)
+ *     Confirm -> select/confirm (short press) or cancel/back (long press)
+ * - Default actions are preserved for compatibility, but the UI module usually disables them.
  *
  * Buttons are expected to be wired active-low: button connects the GPIO to GND when pressed.
  */
@@ -27,27 +28,36 @@ struct ButtonState {
   bool longFired = false;       // whether long-press callback already fired for this press
 };
 
-static ButtonState s_clearBtn;
-static ButtonState s_toggleBtn;
+static ButtonState s_prevBtn;
+static ButtonState s_nextBtn;
+static ButtonState s_confirmBtn;
 
 static unsigned long s_debounceMs = 50;
 static unsigned long s_longPressMs = 1000;
 
-static controls_button_cb_t s_clear_cb = nullptr;
-static controls_button_cb_t s_toggle_cb = nullptr;
+static controls_button_cb_t s_prev_cb = nullptr;
+static controls_button_cb_t s_next_cb = nullptr;
+static controls_button_cb_t s_confirm_cb = nullptr;
 static controls_button_cb_t s_longpress_cb = nullptr;
-static controls_button_cb_t s_clear_long_cb = nullptr;
-static controls_button_cb_t s_toggle_long_cb = nullptr;
+static controls_button_cb_t s_prev_long_cb = nullptr;
+static controls_button_cb_t s_next_long_cb = nullptr;
+static controls_button_cb_t s_confirm_long_cb = nullptr;
 
 static bool s_useDefaultActions = true;
 
 // Default actions (invoked if no custom callback is set and defaults are enabled)
-static void defaultClearAction() {
+static void defaultPrevAction() {
+  // Historically 'Clear' cleared the EPD; keep that behavior as a default.
   epd_clear();
 }
-static void defaultToggleAction() {
+static void defaultNextAction() {
+  // Historically 'Toggle' flipped partial update setting; keep that behavior as a default.
   bool cur = epd_getPartialEnabled();
   epd_setPartialEnabled(!cur);
+}
+static void defaultConfirmAction() {
+  // No-op by default (log for diagnostics)
+  Serial.println("controls: defaultConfirmAction -> no action");
 }
 static void defaultLongPressAction() {
   // Run the recovery clear sequence (long operation)
@@ -58,60 +68,91 @@ static void defaultLongPressAction() {
 }
 
 /* ---------- Initialization ---------- */
-void controls_init(uint8_t clearPin, uint8_t togglePin, unsigned long debounceMs) {
-  s_clearBtn.pin = clearPin;
-  s_toggleBtn.pin = togglePin;
+void controls_init(uint8_t prevPin, uint8_t nextPin, uint8_t confirmPin, unsigned long debounceMs) {
+  s_prevBtn.pin = prevPin;
+  s_nextBtn.pin = nextPin;
+  s_confirmBtn.pin = confirmPin;
   s_debounceMs = debounceMs;
 
-  Serial.printf("controls_init: clearPin=%d togglePin=%d debounceMs=%lu\n", clearPin, togglePin, s_debounceMs);
+  Serial.printf("controls_init: prevPin=%d nextPin=%d confirmPin=%d debounceMs=%lu\n", prevPin, nextPin, confirmPin, s_debounceMs);
 
   // Configure pins. Your buttons are wired to GND (active-low), so enable
   // the internal pull-ups to keep the pins HIGH at idle and read LOW when
   // the button is pressed.
-  pinMode(s_clearBtn.pin, INPUT_PULLUP);
-  pinMode(s_toggleBtn.pin, INPUT_PULLUP);
+  pinMode(s_prevBtn.pin, INPUT_PULLUP);
+  pinMode(s_nextBtn.pin, INPUT_PULLUP);
+  pinMode(s_confirmBtn.pin, INPUT_PULLUP);
 
-  // Initial readings
-  s_clearBtn.raw = digitalRead(s_clearBtn.pin);
-  s_clearBtn.stable = s_clearBtn.raw;
-  s_clearBtn.idleState = s_clearBtn.stable;
-  s_clearBtn.lastChange = millis();
-  s_clearBtn.pressStart = 0;
-  s_clearBtn.longFired = false;
+  // Initial readings for all buttons
+  s_prevBtn.raw = digitalRead(s_prevBtn.pin);
+  s_prevBtn.stable = s_prevBtn.raw;
+  s_prevBtn.idleState = s_prevBtn.stable;
+  s_prevBtn.lastChange = millis();
+  s_prevBtn.pressStart = 0;
+  s_prevBtn.longFired = false;
 
-  s_toggleBtn.raw = digitalRead(s_toggleBtn.pin);
-  s_toggleBtn.stable = s_toggleBtn.raw;
-  s_toggleBtn.idleState = s_toggleBtn.stable;
-  s_toggleBtn.lastChange = millis();
-  s_toggleBtn.pressStart = 0;
-  s_toggleBtn.longFired = false;
+  s_nextBtn.raw = digitalRead(s_nextBtn.pin);
+  s_nextBtn.stable = s_nextBtn.raw;
+  s_nextBtn.idleState = s_nextBtn.stable;
+  s_nextBtn.lastChange = millis();
+  s_nextBtn.pressStart = 0;
+  s_nextBtn.longFired = false;
 
-  Serial.printf("controls_init: initial raw clear=%d stable=%d toggle raw=%d stable=%d\n",
-                s_clearBtn.raw, s_clearBtn.stable, s_toggleBtn.raw, s_toggleBtn.stable);
+  s_confirmBtn.raw = digitalRead(s_confirmBtn.pin);
+  s_confirmBtn.stable = s_confirmBtn.raw;
+  s_confirmBtn.idleState = s_confirmBtn.stable;
+  s_confirmBtn.lastChange = millis();
+  s_confirmBtn.pressStart = 0;
+  s_confirmBtn.longFired = false;
+
+  Serial.printf("controls_init: initial raw prev=%d stable=%d next raw=%d stable=%d confirm raw=%d stable=%d\n",
+                s_prevBtn.raw, s_prevBtn.stable, s_nextBtn.raw, s_nextBtn.stable, s_confirmBtn.raw, s_confirmBtn.stable);
 
   // If defaults enabled and no callbacks provided, leave callbacks null:
   // callbacks are checked at invocation-time and fall back to defaults if needed.
 }
 
 /* ---------- Callbacks registration ---------- */
-void controls_setClearCallback(controls_button_cb_t cb) {
-  s_clear_cb = cb;
+void controls_setPrevCallback(controls_button_cb_t cb) {
+  s_prev_cb = cb;
 }
 
-void controls_setToggleCallback(controls_button_cb_t cb) {
-  s_toggle_cb = cb;
+void controls_setNextCallback(controls_button_cb_t cb) {
+  s_next_cb = cb;
+}
+
+void controls_setConfirmCallback(controls_button_cb_t cb) {
+  s_confirm_cb = cb;
 }
 
 void controls_setLongPressCallback(controls_button_cb_t cb) {
   s_longpress_cb = cb;
 }
 
-void controls_setClearLongCallback(controls_button_cb_t cb) {
-  s_clear_long_cb = cb;
+void controls_setPrevLongCallback(controls_button_cb_t cb) {
+  s_prev_long_cb = cb;
 }
 
+void controls_setNextLongCallback(controls_button_cb_t cb) {
+  s_next_long_cb = cb;
+}
+
+void controls_setConfirmLongCallback(controls_button_cb_t cb) {
+  s_confirm_long_cb = cb;
+}
+
+// Backwards-compatible wrappers (old names)
+void controls_setClearCallback(controls_button_cb_t cb) {
+  s_prev_cb = cb;
+}
+void controls_setToggleCallback(controls_button_cb_t cb) {
+  s_next_cb = cb;
+}
+void controls_setClearLongCallback(controls_button_cb_t cb) {
+  s_prev_long_cb = cb;
+}
 void controls_setToggleLongCallback(controls_button_cb_t cb) {
-  s_toggle_long_cb = cb;
+  s_next_long_cb = cb;
 }
 
 void controls_setLongPressMs(unsigned long ms) {
@@ -123,8 +164,13 @@ void controls_setUseDefaultActions(bool enable) {
 }
 
 // Diagnostic helpers
-uint8_t controls_getClearPin(void) { return s_clearBtn.pin; }
-uint8_t controls_getTogglePin(void) { return s_toggleBtn.pin; }
+uint8_t controls_getPrevPin(void) { return s_prevBtn.pin; }
+uint8_t controls_getNextPin(void) { return s_nextBtn.pin; }
+uint8_t controls_getConfirmPin(void) { return s_confirmBtn.pin; }
+// Backwards-compatible names
+uint8_t controls_getClearPin(void) { return s_prevBtn.pin; }
+uint8_t controls_getTogglePin(void) { return s_nextBtn.pin; }
+// Read raw digital state of a pin (convenience wrapper)
 int controls_readPin(uint8_t pin) { return digitalRead(pin); }
 
 /* ---------- Polling + debounce logic ---------- */
@@ -166,8 +212,9 @@ static void _pollButton(ButtonState &b, controls_button_cb_t onShort, controls_b
           } else if (s_useDefaultActions) {
             Serial.printf("controls: pin %d short -> default action\n", b.pin);
             // choose the correct default depending on which button
-            if (&b == &s_clearBtn) defaultClearAction();
-            else if (&b == &s_toggleBtn) defaultToggleAction();
+            if (&b == &s_prevBtn) defaultPrevAction();
+            else if (&b == &s_nextBtn) defaultNextAction();
+            else if (&b == &s_confirmBtn) defaultConfirmAction();
           } else {
             Serial.printf("controls: pin %d short -> no action registered\n", b.pin);
           }
@@ -204,6 +251,7 @@ static void _pollButton(ButtonState &b, controls_button_cb_t onShort, controls_b
 void controls_poll(void) {
   // Must be called frequently (e.g., from loop())
   // Prefer per-button long-press callbacks when set; otherwise fall back to the global one.
-  _pollButton(s_clearBtn, s_clear_cb, (s_clear_long_cb ? s_clear_long_cb : s_longpress_cb));
-  _pollButton(s_toggleBtn, s_toggle_cb, (s_toggle_long_cb ? s_toggle_long_cb : s_longpress_cb));
+  _pollButton(s_prevBtn, s_prev_cb, (s_prev_long_cb ? s_prev_long_cb : s_longpress_cb));
+  _pollButton(s_nextBtn, s_next_cb, (s_next_long_cb ? s_next_long_cb : s_longpress_cb));
+  _pollButton(s_confirmBtn, s_confirm_cb, (s_confirm_long_cb ? s_confirm_long_cb : s_longpress_cb));
 }

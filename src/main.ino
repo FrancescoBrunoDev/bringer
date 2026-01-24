@@ -25,17 +25,20 @@ void setup() {
   delay(100);
 
   // Initialize controls (buttons): pins are selectable at compile time via
-  // -D CONTROL_CLEAR_PIN and -D CONTROL_TOGGLE_PIN build flags. Defaults chosen
-  // here are conservative common GPIOs that typically are not strapping pins.
-// Preferences: use GPIO11 and GPIO9 for buttons (11 = clear, 9 = toggle)
-// Control pins (can be overridden with build flags)
-#ifndef CONTROL_CLEAR_PIN
-#define CONTROL_CLEAR_PIN 11
+  // -D CONTROL_PREV_PIN, -D CONTROL_NEXT_PIN and -D CONTROL_CONFIRM_PIN build flags.
+  // Defaults chosen here are conservative common GPIOs that typically are not strapping pins.
+  // Preferences: use GPIO11 (Prev), GPIO9 (Next) and GPIO10 (Confirm) for buttons
+  // Control pins (can be overridden with build flags)
+#ifndef CONTROL_PREV_PIN
+#define CONTROL_PREV_PIN 11
 #endif
-#ifndef CONTROL_TOGGLE_PIN
-#define CONTROL_TOGGLE_PIN 9
+#ifndef CONTROL_NEXT_PIN
+#define CONTROL_NEXT_PIN 9
 #endif
-  controls_init(CONTROL_CLEAR_PIN, CONTROL_TOGGLE_PIN);
+#ifndef CONTROL_CONFIRM_PIN
+#define CONTROL_CONFIRM_PIN 10
+#endif
+  controls_init(CONTROL_PREV_PIN, CONTROL_NEXT_PIN, CONTROL_CONFIRM_PIN);
 
   // Initialize display hardware (SPI init is done inside epd_init)
   epd_init();
