@@ -9,6 +9,7 @@
 #include "drivers/epaper/display.h"
 #include "app/wifi/wifi.h"
 #include "app/server/server.h"
+#include "app/beszel/beszel.h"
 
 /*
   Minimal main.ino after refactor
@@ -60,6 +61,9 @@ void setup() {
 
   // Initialize UI (OLED menu and button callbacks)
   ui_init();
+
+  // Initialize Beszel Service
+  BeszelService::getInstance().begin("https://beszel.francesco-bruno.com/");
 
   // Show initial text (display module stores default text)
   // epd_displayText(epd_getCurrentText(), GxEPD_RED, false);

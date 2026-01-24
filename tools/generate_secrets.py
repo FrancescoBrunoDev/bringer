@@ -40,6 +40,7 @@ def write_header(vals, outpath):
     define("AP_SSID", "AP_SSID")
     define("AP_PASSWORD", "AP_PASSWORD")
     define("AP_IP_ADDRESS", "AP_IP_ADDRESS")
+    define("BESZEL_TOKEN", "BESZEL_TOKEN")
 
     lines.append("\n#endif // GENERATED_SECRETS_H\n")
 

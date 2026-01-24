@@ -28,8 +28,11 @@ enum epd_job_type_t {
   JOB_CLEAR,
   JOB_FORCE_CLEAR,
   JOB_DATE,
-  JOB_HEADER
+  JOB_HEADER,
+  JOB_PAGE
 };
+
+#include "layout.h"
 
 struct epd_job_t {
   epd_job_type_t type;
@@ -42,6 +45,7 @@ struct epd_job_t {
   String format;
   String imageColor;
   time_t time;
+  EpdPage page;
 };
 
 // --- Hardware ---
@@ -63,6 +67,7 @@ static SemaphoreHandle_t s_stateMutex = NULL;
 static void _exec_displayText(const epd_job_t &job);
 static void _exec_displayHeader(const epd_job_t &job);
 static void _exec_drawImage(const epd_job_t &job);
+static void _exec_displayPage(const epd_job_t &job);
 static void _exec_clear(bool force);
 
 // Background task worker
@@ -103,6 +108,9 @@ static void epd_worker_task(void *pvParameters) {
           break;
         case JOB_HEADER:
           _exec_displayHeader(*job);
+          break;
+        case JOB_PAGE:
+          _exec_displayPage(*job);
           break;
       }
       
@@ -215,6 +223,13 @@ bool epd_drawImageFromBitplanes(int width, int height, const std::vector<uint8_t
   job->forceFull = forceFull;
   
   return _queueJob(job);
+}
+
+void epd_displayPage(const EpdPage& page) {
+    epd_job_t *job = new epd_job_t();
+    job->type = JOB_PAGE;
+    job->page = page;
+    _queueJob(job);
 }
 
 bool epd_isBusy() {
@@ -367,6 +382,100 @@ static void _exec_drawImage(const epd_job_t &job) {
   } while (display.nextPage());
 
   if (oled_isAvailable()) oled_showStatus("Done");
+}
+
+static void _exec_displayPage(const epd_job_t &job) {
+    if (oled_isAvailable()) oled_showStatus("EPD Layout...");
+
+    display.setFullWindow();
+    display.firstPage();
+    do {
+        display.fillScreen(GxEPD_WHITE);
+        
+        int16_t currY = 0;
+        
+        // 1. Draw Header
+        if (job.page.title.length() > 0) {
+            s_u8g2_epd.setFont(u8g2_font_profont15_tr);
+            s_u8g2_epd.setFontMode(1); // Transparent mode
+            s_u8g2_epd.setForegroundColor(GxEPD_BLACK);
+            s_u8g2_epd.setCursor(8, s_u8g2_epd.getFontAscent() + 4);
+            s_u8g2_epd.print(job.page.title);
+            
+            currY = s_u8g2_epd.getFontAscent() + 8;
+            display.drawFastHLine(0, currY, display.width(), GxEPD_BLACK);
+            display.drawFastHLine(0, currY + 1, display.width(), GxEPD_BLACK); // Double line for thickness
+            currY += 12;
+        } else {
+            currY = 8;
+        }
+
+        // 2. Draw Components
+        for (const auto& comp : job.page.components) {
+            if (currY > display.height() - 12) break;
+
+            s_u8g2_epd.setFontMode(1);
+            
+            switch (comp.type) {
+                case EPD_COMP_HEADER:
+                    s_u8g2_epd.setFont(u8g2_font_profont15_tr);
+                    s_u8g2_epd.setForegroundColor(GxEPD_BLACK);
+                    s_u8g2_epd.setCursor(8, currY + s_u8g2_epd.getFontAscent());
+                    s_u8g2_epd.print(comp.text1);
+                    currY += (s_u8g2_epd.getFontAscent() - s_u8g2_epd.getFontDescent()) + 6;
+                    break;
+
+                case EPD_COMP_ROW:
+                    s_u8g2_epd.setFont(u8g2_font_profont15_tr);
+                    s_u8g2_epd.setForegroundColor(GxEPD_BLACK);
+                    
+                    // Label (Left)
+                    s_u8g2_epd.setCursor(8, currY + s_u8g2_epd.getFontAscent());
+                    s_u8g2_epd.print(comp.text1);
+                    
+                    // Value (Right)
+                    s_u8g2_epd.setForegroundColor(comp.color == 0 ? GxEPD_BLACK : comp.color);
+                    {
+                        int16_t valW = s_u8g2_epd.getUTF8Width(comp.text2.c_str());
+                        s_u8g2_epd.setCursor(display.width() - valW - 8, currY + s_u8g2_epd.getFontAscent());
+                        s_u8g2_epd.print(comp.text2);
+                    }
+                    currY += 20; // Slightly more spacing for a premium feel
+                    break;
+
+                case EPD_COMP_PROGRESS:
+                    s_u8g2_epd.setFont(u8g2_font_profont12_tr);
+                    s_u8g2_epd.setForegroundColor(GxEPD_BLACK);
+                    s_u8g2_epd.setCursor(8, currY + s_u8g2_epd.getFontAscent());
+                    s_u8g2_epd.print(comp.text1);
+                    
+                    {
+                        int16_t barW = display.width() - 100;
+                        int16_t barX = display.width() - barW - 40;
+                        int16_t barY = currY + 2;
+                        int16_t barH = 8;
+                        display.drawRect(barX, barY, barW, barH, GxEPD_BLACK);
+                        int16_t fillW = (int16_t)((barW - 4) * (comp.value / 100.0f));
+                        if (fillW > 0) {
+                            display.fillRect(barX + 2, barY + 2, fillW, barH - 4, comp.color == 0 ? GxEPD_RED : comp.color);
+                        }
+                        
+                        // Percentage text
+                        s_u8g2_epd.setCursor(display.width() - 35, currY + s_u8g2_epd.getFontAscent());
+                        s_u8g2_epd.print(comp.text2);
+                    }
+                    currY += 16;
+                    break;
+
+                case EPD_COMP_SEPARATOR:
+                    display.drawFastHLine(8, currY + 4, display.width() - 16, GxEPD_BLACK);
+                    currY += 10;
+                    break;
+            }
+        }
+    } while (display.nextPage());
+
+    if (oled_isAvailable()) oled_showStatus("Done");
 }
 
 static void _exec_clear(bool force) {

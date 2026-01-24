@@ -36,4 +36,8 @@
 // #define AP_IP_ADDRESS "192.168.4.1"
 #endif
 
+#ifndef BESZEL_TOKEN
+#define BESZEL_TOKEN ""
+#endif
+
 #endif // SECRETS_H

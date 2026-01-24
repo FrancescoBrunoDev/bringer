@@ -4,6 +4,7 @@
 static const App* s_apps[] = {
     &APP_HOME,
     &APP_TEXT,
+    &APP_BESZEL,
     &APP_SETTINGS
 };
 
