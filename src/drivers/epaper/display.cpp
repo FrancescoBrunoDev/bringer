@@ -125,7 +125,7 @@ void epd_init() {
   SPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_CS);
 
   // Initialize OLED early
-  oled_init();
+  oled_init(PIN_OLED_SDA, PIN_OLED_SCL, OLED_I2C_ADDR);
   if (oled_isAvailable()) {
     oled_showStatus("EPD init...");
   }

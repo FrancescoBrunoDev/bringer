@@ -23,6 +23,28 @@ constexpr uint8_t PIN_BUSY = 4;
 constexpr uint8_t PIN_RST  = 2;
 constexpr uint8_t PIN_DC   = 21;
 
+// --- OLED Display ---
+#ifndef PIN_OLED_SDA
+constexpr uint8_t PIN_OLED_SDA = 15;
+#endif
+#ifndef PIN_OLED_SCL
+constexpr uint8_t PIN_OLED_SCL = 22;
+#endif
+#ifndef OLED_I2C_ADDR
+constexpr uint8_t OLED_I2C_ADDR = 0x3C;
+#endif
+
+// --- Input Controls (Buttons) ---
+#ifndef PIN_BUTTON_PREV
+constexpr uint8_t PIN_BUTTON_PREV = 11;
+#endif
+#ifndef PIN_BUTTON_NEXT
+constexpr uint8_t PIN_BUTTON_NEXT = 9;
+#endif
+#ifndef PIN_BUTTON_CONFIRM
+constexpr uint8_t PIN_BUTTON_CONFIRM = 10;
+#endif
+
 // HTTP server configuration
 constexpr uint16_t WEB_SERVER_PORT = 80;
 
