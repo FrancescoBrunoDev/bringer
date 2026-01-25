@@ -43,7 +43,10 @@
     // Load specific data if needed
     if (tabName === 'Apps') loadTextOptions();
     if (tabName === 'Settings') refreshSettings();
+    if (tabName === 'Apps') loadTextOptions();
+    if (tabName === 'Settings') refreshSettings();
     if (tabName === 'Logs') refreshLogs();
+    if (tabName === 'Epub') loadEpubList();
   }
 
   // --- Polling & Status ---
@@ -152,6 +155,100 @@
     }
   }
 
+  // --- Epub Logic ---
+  async function loadEpubList() {
+    try {
+      var r = await fetch('/api/epub/list');
+      var list = await r.json();
+      var html = '<ul style="list-style:none; padding:0;">';
+      if (!list || list.length === 0) {
+        html += '<li>No books found.</li>';
+      } else {
+        list.forEach(function (item) {
+          html += '<li style="padding:5px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">';
+          html += '<span>' + item.name + ' (' + Math.round(item.size / 1024) + ' KB)</span>';
+          html += '<div>';
+          html += '<button data-ren="' + item.name + '" style="margin-right:5px;">Rename</button>';
+          html += '<button data-del="' + item.name + '" style="color:red;">Delete</button>';
+          html += '</div></li>';
+        });
+      }
+      html += '</ul>';
+      var div = document.getElementById('epubList');
+      if (div) {
+        div.innerHTML = html;
+        // Add listeners
+        div.querySelectorAll('button[data-del]').forEach(function (b) {
+          b.addEventListener('click', function () { deleteEpub(b.getAttribute('data-del')); });
+        });
+        div.querySelectorAll('button[data-ren]').forEach(function (b) {
+          b.addEventListener('click', function () { renameEpub(b.getAttribute('data-ren')); });
+        });
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
+  async function renameEpub(oldName) {
+    var newName = prompt("New name (must end with .epub):", oldName);
+    if (!newName || newName === oldName) return;
+    if (!newName.endsWith(".epub")) { alert("Must end with .epub"); return; }
+
+    try {
+      var form = new FormData();
+      form.append("oldName", oldName);
+      form.append("newName", newName);
+      var r = await fetch('/api/epub/rename', { method: 'POST', body: form });
+      if (r.ok) loadEpubList();
+      else alert("Rename failed");
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
+  async function uploadEpub() {
+    var input = document.getElementById('epubFile');
+    if (input.files.length === 0) return;
+    var file = input.files[0];
+    var formData = new FormData();
+    formData.append("file", file);
+
+    var status = document.getElementById('uploadStatus');
+    status.innerText = "Uploading...";
+
+    try {
+      var r = await fetch('/api/epub/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (r.ok) {
+        status.innerText = "Done!";
+        loadEpubList();
+        input.value = ''; // clear
+      } else {
+        status.innerText = "Error.";
+      }
+    } catch (e) {
+      status.innerText = "Fail: " + e;
+    }
+  }
+
+  async function deleteEpub(name) {
+    if (!confirm("Delete " + name + "?")) return;
+    try {
+      var form = new FormData();
+      form.append("name", name);
+      var r = await fetch('/api/epub/delete', {
+        method: 'POST',
+        body: form
+      });
+      if (r.ok) loadEpubList();
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
   // --- Initialization ---
   document.addEventListener('DOMContentLoaded', function () {
     setupTabs();
@@ -163,7 +260,11 @@
 
     if (el('btnRefreshText')) el('btnRefreshText').addEventListener('click', loadTextOptions);
     if (el('btnRefreshSettings')) el('btnRefreshSettings').addEventListener('click', refreshSettings);
+    if (el('btnRefreshText')) el('btnRefreshText').addEventListener('click', loadTextOptions);
+    if (el('btnRefreshSettings')) el('btnRefreshSettings').addEventListener('click', refreshSettings);
     if (el('btnRefreshLogs')) el('btnRefreshLogs').addEventListener('click', refreshLogs);
+    if (el('btnRefreshEpub')) el('btnRefreshEpub').addEventListener('click', loadEpubList);
+    if (el('btnUploadEpub')) el('btnUploadEpub').addEventListener('click', uploadEpub);
 
     // Settings content buttons
     var settingsContainer = document.getElementById('settingsParams');

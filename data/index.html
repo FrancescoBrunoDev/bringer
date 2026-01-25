@@ -14,6 +14,7 @@
   <div class="tabs" id="mainTabs">
     <button class="tab-link active" data-tab="Home">Home</button>
     <button class="tab-link" data-tab="Apps">Apps</button>
+    <button class="tab-link" data-tab="Epub">Epub</button>
     <button class="tab-link" data-tab="Settings">Settings</button>
     <button class="tab-link" data-tab="Logs">Logs</button>
   </div>
@@ -38,6 +39,24 @@
     <div class="app-controls">
       <button id="enterApp">Enter App</button>
       <button id="exitApp">Exit App</button>
+    </div>
+  </div>
+
+  <!-- EPUB TAB -->
+  <div id="Epub" class="tab-content">
+    <h3>Epub Manager</h3>
+    <div style="border:1px dashed #ccc; padding:15px; margin-bottom:15px;">
+      <h4>Upload Book</h4>
+      <input type="file" id="epubFile" accept=".epub">
+      <button id="btnUploadEpub">Upload</button>
+      <span id="uploadStatus" style="margin-left:10px;"></span>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h4>Library</h4>
+      <button id="btnRefreshEpub">Refresh</button>
+    </div>
+    <div id="epubList" style="margin-top:10px;">
+      <!-- List -->
     </div>
   </div>
 

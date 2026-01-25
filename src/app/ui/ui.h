@@ -18,6 +18,7 @@
  */
 
 #include <Arduino.h>
+#include "common/types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,6 +41,13 @@ void ui_select(void);
 
 // Go back / Cancel (Confirm long press)
 void ui_back(void);
+
+// Switch the current view (App entry point)
+struct View; // Forward decl
+void ui_setView(const View* view);
+
+// Trigger vertical animation (transition effect)
+void ui_triggerVerticalAnimation(bool up);
 
 // Introspection helpers for the web UI
 int ui_getState(void);

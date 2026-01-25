@@ -4,32 +4,32 @@ AGENTS
 This repository hosts the firmware for an ESP32-C6-based device featuring dual displays (E-Paper & OLED). Capabilities include an RSS/feed reader, EPUB support, Beszel integration, and a web-based management interface (Bringer). This document guides building, testing, and development workflows for agents and contributors.
 
 - Repository root: `.`
-- Project root: `.` (active PlatformIO env: `esp32c6-devkitm-1`)
+- Project root: `.` (active PlatformIO env: `seeed_xiao_esp32c6`)
 
 Commands
 -
 - Build (compile only):
 
 ```
-pio run -e esp32c6-devkitm-1
+pio run -e seeed_xiao_esp32c6
 ```
 
 - Build + upload (replace port):
 
 ```
-pio run -e esp32c6-devkitm-1 -t upload --upload-port /dev/ttyACM0
+pio run -e seeed_xiao_esp32c6 -t upload --upload-port /dev/ttyACM0
 ```
 
 - Clean build artefacts:
 
 ```
-pio run -e esp32c6-devkitm-1 -t clean
+pio run -e seeed_xiao_esp32c6 -t clean
 ```
 
 - Serial monitor (watch logs at 115200):
 
 ```
-pio device monitor -e esp32c6-devkitm-1 --port /dev/ttyACM0 -b 115200
+pio device monitor -e seeed_xiao_esp32c6 --port /dev/ttyACM0 -b 115200
 ```
 
 - Upload static web files to device filesystem (LittleFS):
@@ -37,7 +37,7 @@ pio device monitor -e esp32c6-devkitm-1 --port /dev/ttyACM0 -b 115200
   Place your `.html`, `.css` and `.js` files in the `data/` directory at the repository root and upload them to the device with:
 
 ```
-pio run -e esp32c6-devkitm-1 -t uploadfs
+pio run -e seeed_xiao_esp32c6 -t uploadfs
 ```
 
   Note: The firmware serves the UI only from the device filesystem (LittleFS). If the filesystem is not mounted or the files are missing, requests for UI files (e.g. `/index.html`, `/app.js`, `/style.css`) will return 404.
@@ -46,14 +46,14 @@ pio run -e esp32c6-devkitm-1 -t uploadfs
 - Unit tests are located in the `test/` directory. PlatformIO's test runner is used:
 
 ```
-pio test -e esp32c6-devkitm-1
+pio test -e seeed_xiao_esp32c6
 ```
 
 - Run a single test file
 - PlatformIO supports filtering test execution by file/name. Depending on PIO version use `-f`/`--filter` to pass a path or pattern. Example:
 
 ```
-pio test -e esp32c6-devkitm-1 -f test/my_test.cpp
+pio test -e seeed_xiao_esp32c6 -f test/my_test.cpp
 ```
 
 If `-f` is not available on your PIO version run the full suite and scope your changes to a single test file or run the unity test file on a host environment (see PlatformIO docs).
@@ -158,9 +158,9 @@ Where to look
 
 Next steps agents commonly take
 -
-1. Build locally: `pio run -e esp32c6-devkitm-1` to verify compilation.
-2. Run serial monitor during integration tests: `pio device monitor -e esp32c6-devkitm-1 --port /dev/ttyACM0 -b 115200`.
-3. Add unit tests under `test/` and run `pio test -e esp32c6-devkitm-1`.
+1. Build locally: `pio run -e seeed_xiao_esp32c6` to verify compilation.
+2. Run serial monitor during integration tests: `pio device monitor -e seeed_xiao_esp32c6 --port /dev/ttyACM0 -b 115200`.
+3. Add unit tests under `test/` and run `pio test -e seeed_xiao_esp32c6`.
 
 If you want, I can also:
 1) Add a `.clang-format` and run it across the codebase.
