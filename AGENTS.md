@@ -1,7 +1,7 @@
 AGENTS
 -----
 
-This repository is an embedded Arduino/PlatformIO example (ESP32‑C6) that exposes an HTTP API and an OLED menu. This document gives quick commands for building, testing and a compact code style / agent ruleset so automated agents (and humans) can operate consistently.
+This repository hosts the firmware for an ESP32-C6-based device featuring dual displays (E-Paper & OLED). Capabilities include an RSS/feed reader, EPUB support, Beszel integration, and a web-based management interface (Bringer). This document guides building, testing, and development workflows for agents and contributors.
 
 - Repository root: `.`
 - Project root: `.` (active PlatformIO env: `esp32c6-devkitm-1`)
@@ -138,6 +138,7 @@ Style guidelines (applies to C++/Arduino code)
 Agent rules (how automated agents should operate)
 -
 - Make non-destructive changes only. If you must modify hardware configs or secrets, ask before committing.
+- When making software changes, consider if the server component needs to be updated accordingly. ALWAYS ask the user before modifying the server code or configuration.
 - Never commit binary build artefacts (PlatformIO creates `.pio` and `build` directories — keep these out of git). Respect existing `.gitignore`.
 - If creating or editing code:
   - Follow the style rules above.
