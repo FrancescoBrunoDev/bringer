@@ -1,54 +1,71 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ESP32 Menu</title>
+  <title>Device Server</title>
   <link rel="stylesheet" href="/style.css">
 </head>
+
 <body>
-  <h2>Device Menu</h2>
+  <h2>Device Server</h2>
 
-  <div id="menu">
-    <ul class="menu-list">
-      <li id="m0" class="menu-item">Home</li>
-      <li id="m1" class="menu-item">Text App</li>
-      <li id="m2" class="menu-item">Settings</li>
-    </ul>
+  <div class="tabs" id="mainTabs">
+    <button class="tab-link active" data-tab="Home">Home</button>
+    <button class="tab-link" data-tab="Apps">Apps</button>
+    <button class="tab-link" data-tab="Settings">Settings</button>
+    <button class="tab-link" data-tab="Logs">Logs</button>
   </div>
 
-  <div id="settingsArea" class="hidden settings-area">
-    <h3>Settings</h3>
-    <p id="ipline" class="ipline"></p>
-    <p class="settings-buttons">
-      <button data-action="ip">IP (noop)</button>
-      <button data-action="toggle">Toggle Partial</button>
-      <button data-action="clean">Full Clean</button>
-    </p>
+  <!-- HOME TAB -->
+  <div id="Home" class="tab-content active">
+    <h3>Home</h3>
+    <p>System Ready.</p>
   </div>
 
-  <div id="appArea" class="hidden app-area">
+  <!-- APPS TAB -->
+  <div id="Apps" class="tab-content">
     <h3>Text App</h3>
-    <div id="textOptions" class="text-options"></div>
-    <p>
-      <button id="enterApp">Enter app</button>
-      <button id="exitApp">Exit app</button>
-    </p>
+    <p>Select text to display on the device.</p>
+    <div id="textOptions" class="text-options">
+      <!-- Options will be loaded here -->
+    </div>
+    <div style="margin-top:10px;">
+      <button id="btnRefreshText">Refresh List</button>
+    </div>
+    <br>
+    <div class="app-controls">
+      <button id="enterApp">Enter App</button>
+      <button id="exitApp">Exit App</button>
+    </div>
   </div>
 
-  <p class="control-buttons">
-    <button id="btnNext">Next</button>
-    <button id="btnSelect">Select</button>
-    <button id="btnBack">Back</button>
-  </p>
+  <!-- SETTINGS TAB -->
+  <div id="Settings" class="tab-content">
+    <h3>Device Settings</h3>
+    <p id="ipline" class="ipline">Loading status...</p>
+    <div class="settings-buttons" id="settingsParams">
+      <button id="btnRefreshSettings">Refresh Status</button>
+      <br><br>
+      <button data-action="toggle">Toggle Partial Mode</button>
+      <button data-action="clean">Full Clean</button>
+    </div>
+  </div>
 
-  <p>
-    <button id="doDiag">Run diag</button> <span id="diag"></span>
-  </p>
+  <!-- LOGS TAB -->
+  <div id="Logs" class="tab-content">
+    <h3>System Logs</h3>
+    <div class="logs-controls">
+      <button id="btnRefreshLogs">Refresh Logs</button>
+      <label><input type="checkbox" id="chkAutoRefreshLogs" checked> Auto</label>
+    </div>
+    <pre id="logOutput"
+      style="background:#eee; border:1px solid black; padding:10px; height:300px; overflow-y:auto; font-size:0.9em; margin-top:10px;"></pre>
+  </div>
 
-  <!-- EPD busy indicator (updated by client-side polling) -->
-  <div id="epdBusy" class="epd-busy hidden">EPD updating...</div>
 
   <script src="/app.js" defer></script>
 </body>
+
 </html>

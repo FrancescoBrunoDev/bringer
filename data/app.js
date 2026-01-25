@@ -1,61 +1,105 @@
 /*
-  app.js - Client-side script for the built-in web UI
-
-  - Polls /ui_state to keep the UI in sync with the device
-  - Provides actions to call server endpoints (buttons, apps, diag)
+  app.js - Client-side script for the device server UI
 */
 
 (function () {
   'use strict';
 
-  var lastState = -1;
+  var currentTab = 'Home';
 
+  // --- Tab Management ---
+  function setupTabs() {
+    var tabs = document.querySelectorAll('.tab-link');
+    tabs.forEach(function (tab) {
+      tab.addEventListener('click', function (e) {
+        openTab(e.currentTarget.getAttribute('data-tab'));
+      });
+    });
+  }
+
+  function openTab(tabName) {
+    currentTab = tabName;
+
+    // Hide all tab content
+    var contents = document.querySelectorAll('.tab-content');
+    contents.forEach(function (content) {
+      content.classList.remove('active');
+    });
+
+    // Remove active class from all tabs
+    var links = document.querySelectorAll('.tab-link');
+    links.forEach(function (link) {
+      link.classList.remove('active');
+    });
+
+    // Show the specific tab content
+    var activeContent = document.getElementById(tabName);
+    if (activeContent) activeContent.classList.add('active');
+
+    // Add active class to the button that opened the tab
+    var activeLink = document.querySelector('.tab-link[data-tab="' + tabName + '"]');
+    if (activeLink) activeLink.classList.add('active');
+
+    // Load specific data if needed
+    if (tabName === 'Apps') loadTextOptions();
+    if (tabName === 'Settings') refreshSettings();
+    if (tabName === 'Logs') refreshLogs();
+  }
+
+  // --- Polling & Status ---
   async function refresh() {
     try {
+      // 1. Check UI State (always)
       var resp = await fetch('/ui_state');
       var j = await resp.json();
-      var s = j.state;
       var busy = j.epdBusy;
 
-      // highlight menu
-      document.querySelectorAll('#menu .menu-item').forEach(function (it, idx) {
-        it.classList.toggle('active', idx === s);
-      });
+      // Removed EPD busy indicator in this update since Control UI is gone,
+      // but we could keep it if it was floating. Just ignoring it for now as per minimal requests.
 
-      // settings area
-      if (s === 3) {
-        document.getElementById('settingsArea').classList.remove('hidden');
-        refreshSettings();
-      } else {
-        document.getElementById('settingsArea').classList.add('hidden');
+      // 2. Refresh Logs if active
+      if (currentTab === 'Logs') {
+        var chk = document.getElementById('chkAutoRefreshLogs');
+        if (chk && chk.checked) {
+          // mild throttling or just call it
+          refreshLogs();
+        }
       }
 
-      // app area
-      if (s === 1) {
-        document.getElementById('appArea').classList.remove('hidden');
-        if (lastState !== 1) loadTextOptions();
-      } else {
-        document.getElementById('appArea').classList.add('hidden');
-      }
-
-      // epd busy indicator
-      var epdBusyEl = document.getElementById('epdBusy');
-      if (epdBusyEl) epdBusyEl.classList.toggle('hidden', !busy);
-
-      lastState = s;
     } catch (e) {
       console.log('refresh error', e);
     }
   }
 
+  // --- Logs Logic ---
+  async function refreshLogs() {
+    try {
+      var r = await fetch('/logs');
+      var logs = await r.json();
+      // logs is array of strings
+      var el = document.getElementById('logOutput');
+      if (el) {
+        el.innerText = logs.join('\n');
+        el.scrollTop = el.scrollHeight; // Auto-scroll to bottom
+      }
+    } catch (e) {
+      console.log('logs error', e);
+    }
+  }
+
+  // --- Apps Logic ---
   async function loadTextOptions() {
     try {
       var r = await fetch('/apps/text/list');
       var j = await r.json();
       var opts = j.options || [];
       var html = '';
-      for (var i = 0; i < opts.length; ++i) {
-        html += '<div>' + i + ': ' + opts[i] + ' <button data-idx="' + i + '">Show</button></div>';
+      if (opts.length === 0) {
+        html = '<div>No text files found.</div>';
+      } else {
+        for (var i = 0; i < opts.length; ++i) {
+          html += '<div>' + i + ': ' + opts[i] + ' <button data-idx="' + i + '">Show</button></div>';
+        }
       }
       var container = document.getElementById('textOptions');
       if (!container) return;
@@ -67,6 +111,8 @@
       });
     } catch (e) {
       console.log('loadTextOptions error', e);
+      var container = document.getElementById('textOptions');
+      if (container) container.innerHTML = 'Error loading list.';
     }
   }
 
@@ -75,26 +121,22 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ index: Number(i) })
-    }).then(refresh).catch(function (e) { console.log('postSelect error', e); });
+    }).catch(function (e) { console.log('postSelect error', e); });
   }
 
-  function enterApp() { fetch('/button/select', { method: 'POST' }).then(refresh); }
-  function exitApp() { fetch('/button/back', { method: 'POST' }).then(refresh); }
-  function btnNext() { fetch('/button/next', { method: 'POST' }).then(refresh); }
-  function btnSelect() { fetch('/button/select', { method: 'POST' }).then(refresh); }
-  function btnBack() { fetch('/button/back', { method: 'POST' }).then(refresh); }
+  // --- Device Actions ---
+  function enterApp() { fetch('/button/select', { method: 'POST' }); }
+  function exitApp() { fetch('/button/back', { method: 'POST' }); }
 
-  // Map settings actions (currently: simple simulation via next->select).
+  // --- Settings Logic ---
   function postSettingAction(action) {
     if (action === 'ip') {
-      // noop: just refresh status
-      refresh();
+      refreshSettings();
       return;
     }
-    // Default behaviour: simulate next + select so the device menu can act
     fetch('/button/next', { method: 'POST' })
       .then(function () { return fetch('/button/select', { method: 'POST' }); })
-      .then(refresh)
+      .then(refresh) // Trigger a status check
       .catch(function (e) { console.log('postSettingAction error', e); });
   }
 
@@ -102,44 +144,43 @@
     try {
       var r = await fetch('/status');
       var j = await r.json();
-      document.getElementById('ipline').innerText = 'IP: ' + j.ip + ' | Partial: ' + (j.partialEnabled ? 'ON' : 'OFF');
+      var label = 'IP: ' + j.ip + ' | Partial: ' + (j.partialEnabled ? 'ON' : 'OFF');
+      var el = document.getElementById('ipline');
+      if (el) el.innerText = label;
     } catch (e) {
       console.log('refreshSettings error', e);
     }
   }
 
-  function doDiag() {
-    fetch('/diag').then(function (r) { return r.json(); }).then(function (j) {
-      document.getElementById('diag').innerText = JSON.stringify(j);
-    }).catch(function (e) { console.log('doDiag error', e); });
-  }
-
+  // --- Initialization ---
   document.addEventListener('DOMContentLoaded', function () {
-    // Hook buttons (guard in case elements are missing)
+    setupTabs();
+
+    // Hook buttons
     var el = function (id) { return document.getElementById(id); };
-    if (el('btnNext')) el('btnNext').addEventListener('click', btnNext);
-    if (el('btnSelect')) el('btnSelect').addEventListener('click', btnSelect);
-    if (el('btnBack')) el('btnBack').addEventListener('click', btnBack);
     if (el('enterApp')) el('enterApp').addEventListener('click', enterApp);
     if (el('exitApp')) el('exitApp').addEventListener('click', exitApp);
-    if (el('doDiag')) el('doDiag').addEventListener('click', doDiag);
 
-    // Settings buttons (use data-action attribute)
-    document.querySelectorAll('#settingsArea button').forEach(function (b) {
-      b.addEventListener('click', function () {
-        postSettingAction(b.getAttribute('data-action'));
+    if (el('btnRefreshText')) el('btnRefreshText').addEventListener('click', loadTextOptions);
+    if (el('btnRefreshSettings')) el('btnRefreshSettings').addEventListener('click', refreshSettings);
+    if (el('btnRefreshLogs')) el('btnRefreshLogs').addEventListener('click', refreshLogs);
+
+    // Settings content buttons
+    var settingsContainer = document.getElementById('settingsParams');
+    if (settingsContainer) {
+      settingsContainer.querySelectorAll('button[data-action]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          postSettingAction(b.getAttribute('data-action'));
+        });
       });
-    });
+    }
 
-    // Start polling and initial refresh
-    setInterval(refresh, 700);
+    // Start polling
+    setInterval(refresh, 1000);
+    // Initial data load 
     refresh();
   });
 
-  // Export a tiny API for console / debugging
-  window.bringer = {
-    refresh: refresh,
-    postSelect: postSelect
-  };
-
 })();
+
+

@@ -6,6 +6,7 @@
   - Registers endpoints:
       GET  /        -> simple HTML UI (served from LittleFS: /index.html, /app.js, /style.css)
       GET  /status  -> JSON status (ip, currentText, partialSupported)
+      GET  /logs    -> JSON array of recent log messages
       POST /text    -> JSON { "text":"...", "color":"red"|"black", "forceFull":true|false }
       POST /image   -> JSON { "width":..., "height":..., "data":"<BASE64>", "format":"bw"|"3c", "color":"red"|"black", "forceFull":false }
       POST /img     -> alias for /image
@@ -17,10 +18,10 @@
 */
 
 #include "server.h"
-// NOTE: static_assets.h removed — UI is served only from LittleFS (/data).
 #include "drivers/epaper/display.h"
 #include "app/wifi/wifi.h"
 #include "utils/base64.h"
+#include "utils/logger/logger.h" // Centralized logger
 #include "app/ui/ui.h"
 #include "app/controls/controls.h"
 #include "config.h"
@@ -72,6 +73,24 @@ static void handleStatus() {
   server.send(200, "application/json", out);
 }
 
+static void handleLogs() {
+  // Return logs as a JSON array of strings
+  const std::deque<String>& logs = logger_getLogs();
+  
+  // Calculate approximate size
+  size_t capacity = JSON_ARRAY_SIZE(logs.size()) + (logs.size() * 100); 
+  DynamicJsonDocument doc(capacity);
+  JsonArray arr = doc.to<JsonArray>();
+  
+  for (const auto& line : logs) {
+    arr.add(line);
+  }
+  
+  String out;
+  serializeJson(doc, out);
+  server.send(200, "application/json", out);
+}
+
 static void handleSetText() {
   String body = server.arg("plain");
   if (body.length() == 0 && server.hasArg("text")) {
@@ -79,6 +98,7 @@ static void handleSetText() {
     String text = server.arg("text");
     String color = server.arg("color");
     uint16_t col = (color == "black") ? GxEPD_BLACK : GxEPD_RED;
+    logger_log("SetText (form): %s", text.c_str());
     epd_displayText(text, col, false);
     server.send(200, "application/json", "{\"status\":\"ok\"}");
     return;
@@ -88,6 +108,7 @@ static void handleSetText() {
   StaticJsonDocument<512> doc;
   auto err = deserializeJson(doc, body);
   if (err) {
+    logger_log("SetText error: invalid json");
     server.send(400, "application/json", "{\"error\":\"invalid json\"}");
     return;
   }
@@ -99,6 +120,7 @@ static void handleSetText() {
   if (strcmp(color, "black") == 0) col = GxEPD_BLACK;
 
   // Update display
+  logger_log("SetText: %s (%s)", txt, color);
   epd_displayText(String(txt), col, forceFull);
 
   StaticJsonDocument<128> res;
@@ -138,13 +160,16 @@ static void handleImageUpload() {
   // Decode base64 payload
   std::vector<uint8_t> img;
   if (!base64_decode(String(data_b64), img)) {
+    logger_log("ImageUpload: base64 error");
     server.send(400, "application/json", "{\"error\":\"base64 decode failed\"}");
     return;
   }
 
   // Let display module validate size and format
+  logger_log("ImageUpload: %dx%d %s", width, height, format);
   bool ok = epd_drawImageFromBitplanes(width, height, img, format, color, forceFull);
   if (!ok) {
+    logger_log("ImageUpload: draw failed");
     server.send(400, "application/json", "{\"error\":\"invalid image or format\"}");
     return;
   }
@@ -160,6 +185,7 @@ static void handleImageUpload() {
 
 static void handleClear() {
   // Simple full white clear
+  logger_log("Cmd: Clear");
   epd_clear();
   server.send(200, "application/json", "{\"status\":\"cleared\"}");
 }
@@ -186,6 +212,7 @@ void server_init() {
   server.on("/app.js", HTTP_GET, [](){ serve_file_from_littlefs("/app.js", "application/javascript"); });
   server.on("/style.css", HTTP_GET, [](){ serve_file_from_littlefs("/style.css", "text/css"); });
   server.on("/status", HTTP_GET, handleStatus);
+  server.on("/logs", HTTP_GET, handleLogs);
   server.on("/text", HTTP_POST, handleSetText);
   server.on("/image", HTTP_POST, handleImageUpload);
   server.on("/button/next", HTTP_POST, handleButtonNext);
@@ -226,9 +253,11 @@ void server_init() {
   text_app_register(&server);
 
   server.begin();
-  Serial.println("HTTP server started");
+  logger_log("HTTP server started");
 }
 
 void server_handleClient() {
   server.handleClient();
 }
+
+
