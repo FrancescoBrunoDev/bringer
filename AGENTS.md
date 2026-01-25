@@ -4,7 +4,7 @@ AGENTS
 This repository is an embedded Arduino/PlatformIO example (ESP32‑C6) that exposes an HTTP API and an OLED menu. This document gives quick commands for building, testing and a compact code style / agent ruleset so automated agents (and humans) can operate consistently.
 
 - Repository root: `.`
-- Example app: `examples/esp32c6-oled-menu` (active PlatformIO env: `esp32c6-devkitm-1`)
+- Project root: `.` (active PlatformIO env: `esp32c6-devkitm-1`)
 
 Commands
 -
@@ -43,7 +43,7 @@ pio run -e esp32c6-devkitm-1 -t uploadfs
   Note: The firmware serves the UI only from the device filesystem (LittleFS). If the filesystem is not mounted or the files are missing, requests for UI files (e.g. `/index.html`, `/app.js`, `/style.css`) will return 404.
 
 - PlatformIO unit tests
-- There are currently no unit tests in this repository. If you add tests, PlatformIO's test runner is used:
+- Unit tests are located in the `test/` directory. PlatformIO's test runner is used:
 
 ```
 pio test -e esp32c6-devkitm-1
@@ -153,7 +153,7 @@ Where to look
 -
 - Main example PlatformIO file: `platformio.ini`
 - Main application entry: `src/main.ino`
-- Core modules: `src/drivers/{epaper,oled}`, `src/app/{server,ui,controls,wifi}`, `src/utils` and `src/config.h`
+- Core modules: `src/drivers/{epaper,oled}`, `src/app/{beszel,common,controls,epub,reader,routes,rss,server,ui,wifi}`, `src/utils` and `src/config.h`
 
 Next steps agents commonly take
 -
