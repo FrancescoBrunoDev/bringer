@@ -38,6 +38,7 @@ static ToastPos s_toast_pos = TOAST_BOTTOM;
 static ToastIcon s_toast_icon = TOAST_ICON_NONE;
 static float s_toast_progress = 0.0f; 
 static bool s_toast_manual = false;
+static bool s_needs_scroll_update = false;
 
 void oled_setMenuMode(bool enable) {
   LOCK_OLED();
@@ -98,6 +99,7 @@ void oled_clear(void) {
 void oled_clearBuffer(void) {
   LOCK_OLED();
   if (s_available) s_oled.clearDisplay();
+  s_needs_scroll_update = false;
   UNLOCK_OLED();
 }
 
@@ -212,7 +214,7 @@ void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t x_offset,
   UNLOCK_OLED();
 }
 
-void oled_drawBigText(const char *text, int16_t x_offset, int16_t y_offset, bool update) {
+void oled_drawBigText(const char *text, int16_t x_offset, int16_t y_offset, bool update, bool hasHeader) {
     LOCK_OLED();
     if (!s_available) { UNLOCK_OLED(); return; }
     
@@ -221,16 +223,20 @@ void oled_drawBigText(const char *text, int16_t x_offset, int16_t y_offset, bool
     upperText.toUpperCase();
     const char* text_ptr = upperText.c_str();
 
-    // 1. Try single line scaling first (Reduced starting sizes: 24->20, 17->15)
+    // Strategy:
+    // 1. Try single line BIG (Logisoso20)
+    // 2. Try two lines BIG (Logisoso20) (IF height allows)
+    // 3. Try two lines MEDIUM (Profont15)
+    // 4. Fallback: Scroll single line BIG (Logisoso20)
+
+    bool done = false;
+
+    // 1. Single Line BIG
     s_u8g2.setFont(u8g2_font_logisoso20_tf); 
     int16_t w = s_u8g2.getUTF8Width(text_ptr);
-    if (w > OLED_WIDTH - 4) {
-        s_u8g2.setFont(u8g2_font_profont15_tr);
-        w = s_u8g2.getUTF8Width(text_ptr);
-    }
 
     if (w <= OLED_WIDTH - 4) {
-        // Fits on one line
+        // Fits!
         int16_t h_asc = s_u8g2.getFontAscent();
         int16_t x = (OLED_WIDTH - w) / 2 + x_offset;
         int16_t y = (OLED_HEIGHT / 2) + (h_asc / 2) + y_offset;
@@ -238,14 +244,15 @@ void oled_drawBigText(const char *text, int16_t x_offset, int16_t y_offset, bool
             s_u8g2.setCursor(x, y);
             s_u8g2.print(text_ptr);
         }
-    } else {
-        // Split into two lines
-        s_u8g2.setFont(u8g2_font_profont15_tr);
-        String s = upperText;
-        int split = -1;
+        done = true;
+    } 
+
+    // Split logic helper
+    String s = upperText;
+    int split = -1;
+    if (!done) {
         int len = s.length();
         int mid = len / 2;
-        
         // Find best split point (space near middle)
         for(int i=0; i < len/2; i++) {
             if(mid-i >= 0 && s[mid-i] == ' ') { split = mid-i; break; }
@@ -253,7 +260,67 @@ void oled_drawBigText(const char *text, int16_t x_offset, int16_t y_offset, bool
         }
         // No space? split in the middle (allow word split)
         if(split == -1) split = mid;
+    }
 
+    // 2. Two Lines BIG
+    // Only attempt if NO header strings attached (Header takes 12px, leaving 52px. 
+    // Two lines of Logisoso20 (height ~20-24) is > 40px, plus spacing. Too tight/clips.)
+    if (!done && !hasHeader) {
+        s_u8g2.setFont(u8g2_font_logisoso20_tf);
+        String s1 = s.substring(0, split);
+        String s2 = s.substring(split);
+        if(s2.startsWith(" ")) s2 = s2.substring(1);
+
+        int16_t w1 = s_u8g2.getUTF8Width(s1.c_str());
+        int16_t w2 = s_u8g2.getUTF8Width(s2.c_str());
+
+        // Check horizontal fit
+        if (w1 <= OLED_WIDTH - 2 && w2 <= OLED_WIDTH - 2) {
+            int16_t h_asc = s_u8g2.getFontAscent(); // ~20
+            
+            // Calculate vertical positions
+            int16_t y_center = (OLED_HEIGHT / 2) + y_offset;
+            int16_t y1 = y_center - 11; 
+            int16_t y2 = y_center + 13; 
+            
+            // Check for header collision (Safe Top = 14 if header present)
+            int16_t safe_top = hasHeader ? 14 : 0;
+            // Visual top implies baseline y1 - h_asc
+            int16_t current_top = y1 - h_asc;
+            
+            bool fits_vertically = true;
+            
+            if (current_top < safe_top) {
+                // Determine shift needed
+                int16_t shift = safe_top - current_top;
+                y1 += shift;
+                y2 += shift;
+                // Verify bottom clearance (baseline of line 2)
+                if (y2 > OLED_HEIGHT) { // Strict: if baseline goes offscreen
+                     fits_vertically = false;
+                }
+            }
+
+            if (fits_vertically) {
+                if (y1 > -44 && y1 < OLED_HEIGHT + 44) {
+                    int16_t x1 = (OLED_WIDTH - w1) / 2 + x_offset;
+                    s_u8g2.setCursor(x1, y1 + (h_asc/2)); s_u8g2.print(s1); // Using h_asc/2 offset to approximate baseline from center? Wait, y1 was center-based. With explicit baseline y1?
+                    // Correction: Original implementation setCursor(x, y1 + h_asc/2).
+                    // y1 defined as "center - 11". If center is 32, y1=21. +10 = 31.
+                    // If we shifted y1, we assume logic holds.
+                }
+                if (y2 > -44 && y2 < OLED_HEIGHT + 44) {
+                    int16_t x2 = (OLED_WIDTH - w2) / 2 + x_offset;
+                    s_u8g2.setCursor(x2, y2 + (h_asc/2)); s_u8g2.print(s2);
+                }
+                done = true;
+            }
+        }
+    }
+
+    // 3. Two Lines MEDIUM
+    if (!done) {
+        s_u8g2.setFont(u8g2_font_profont15_tr);
         String s1 = s.substring(0, split);
         String s2 = s.substring(split);
         if(s2.startsWith(" ")) s2 = s2.substring(1);
@@ -261,30 +328,46 @@ void oled_drawBigText(const char *text, int16_t x_offset, int16_t y_offset, bool
         int16_t w1 = s_u8g2.getUTF8Width(s1.c_str());
         int16_t w2 = s_u8g2.getUTF8Width(s2.c_str());
         
-        // Further scaling for lines if they are still too long
-        if (w1 > OLED_WIDTH - 4 || w2 > OLED_WIDTH - 4) {
-            s_u8g2.setFont(u8g2_font_profont11_tr);
-            w1 = s_u8g2.getUTF8Width(s1.c_str());
-            w2 = s_u8g2.getUTF8Width(s2.c_str());
-        }
-        if (w1 > OLED_WIDTH - 4 || w2 > OLED_WIDTH - 4) {
-            s_u8g2.setFont(u8g2_font_profont10_tr);
-            w1 = s_u8g2.getUTF8Width(s1.c_str());
-            w2 = s_u8g2.getUTF8Width(s2.c_str());
-        }
+        if (w1 <= OLED_WIDTH - 4 && w2 <= OLED_WIDTH - 4) {
+            // Fits on 2 lines!
+            int16_t h_asc = s_u8g2.getFontAscent();
+            int16_t x1 = (OLED_WIDTH - w1) / 2 + x_offset;
+            int16_t x2 = (OLED_WIDTH - w2) / 2 + x_offset;
+            int16_t y1 = (OLED_HEIGHT / 2) - 3 + y_offset;
+            int16_t y2 = (OLED_HEIGHT / 2) + h_asc + y_offset;
 
-        int16_t h_asc = s_u8g2.getFontAscent();
-        int16_t x1 = (OLED_WIDTH - w1) / 2 + x_offset;
-        int16_t x2 = (OLED_WIDTH - w2) / 2 + x_offset;
-        int16_t y1 = (OLED_HEIGHT / 2) - 3 + y_offset;
-        int16_t y2 = (OLED_HEIGHT / 2) + h_asc + y_offset;
+            if (y1 > -44 && y1 < OLED_HEIGHT + 44) {
+                s_u8g2.setCursor(x1, y1); s_u8g2.print(s1);
+            }
+            if (y2 > -44 && y2 < OLED_HEIGHT + 44) {
+                s_u8g2.setCursor(x2, y2); s_u8g2.print(s2);
+            }
+            done = true;
+        }
+    }
 
-        if (y1 > -44 && y1 < OLED_HEIGHT + 44) {
-            s_u8g2.setCursor(x1, y1); s_u8g2.print(s1);
-        }
-        if (y2 > -44 && y2 < OLED_HEIGHT + 44) {
-            s_u8g2.setCursor(x2, y2); s_u8g2.print(s2);
-        }
+    if (!done) {
+        // 4. Scroll Single Line BIG
+        s_u8g2.setFont(u8g2_font_logisoso20_tf);
+        w = s_u8g2.getUTF8Width(text_ptr);
+        
+        // Calculate scroll offset
+        // Speed: 30px per second?
+        uint32_t now = millis();
+        // Use a consistent time base (modulus)
+        // Scroll width = text width + screen width + gap
+        int16_t gap = 48;
+        int16_t total_scroll_w = w + OLED_WIDTH + gap;
+        int16_t offset = (now / 8) % total_scroll_w; // Higher divisor = slower
+        
+        int16_t x = OLED_WIDTH - offset + x_offset;
+        int16_t y = (OLED_HEIGHT / 2) + (s_u8g2.getFontAscent() / 2) + y_offset;
+        
+        s_u8g2.setCursor(x, y);
+        s_u8g2.print(text_ptr);
+        
+        // Request persistent updates
+        s_needs_scroll_update = true;
     }
 
     if (update) s_oled.display();
@@ -473,27 +556,35 @@ void oled_drawActiveToast(void) {
 
 bool oled_poll(void) {
   LOCK_OLED();
-  if (!s_available || s_toast_until == 0) { UNLOCK_OLED(); return false; }
+  if (!s_available) { UNLOCK_OLED(); return false; }
   
+  bool redraw = false;
+
   uint32_t now = millis();
-  if (now > s_toast_until) {
-    s_toast_until = 0;
-    s_toast_manual = false;
-    UNLOCK_OLED();
-    return true; // Toast just ended: redraw needed to clear it
+  
+  // Toast Logic
+  if (s_toast_until > 0) {
+      if (now > s_toast_until) {
+        s_toast_until = 0;
+        s_toast_manual = false;
+        redraw = true; // Toast ended
+      } else if (!s_toast_manual) {
+          // Animation check
+          const uint32_t anim_dur = 250;
+          if (now - s_toast_start < anim_dur) redraw = true;
+          else if (s_toast_until - now < anim_dur) redraw = true;
+      } else {
+          // Manual toast always redraws (active progress)
+          redraw = true; 
+      }
   }
 
-  // If manual (e.g. hold-to-confirm), we always return true as progress might be updating
-  if (s_toast_manual) { UNLOCK_OLED(); return true; }
-
-  // Redraw during entry (initial 250ms) and exit (final 250ms).
-  // This ensures the toast is shown immediately and animates out, 
-  // while avoiding redundant redraws during the static middle period.
-  const uint32_t anim_dur = 250;
-  if (now - s_toast_start < anim_dur) { UNLOCK_OLED(); return true; }
-  if (s_toast_until - now < anim_dur) { UNLOCK_OLED(); return true; }
+  // Scroll active?
+  if (s_needs_scroll_update) {
+      redraw = true;
+  }
 
   UNLOCK_OLED();
-  return false; 
+  return redraw; 
 }
 

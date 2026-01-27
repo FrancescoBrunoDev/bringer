@@ -123,7 +123,7 @@ void oled_drawHomeScreen(const char *time, bool wifiConnected, int16_t x_offset 
  * y_offset: vertical translation (0 is normal)
  * update: if true, calls display()
  */
-void oled_drawBigText(const char *text, int16_t x_offset = 0, int16_t y_offset = 0, bool update = true);
+void oled_drawBigText(const char *text, int16_t x_offset = 0, int16_t y_offset = 0, bool update = true, bool hasHeader = false);
 
 enum ToastPos { TOAST_TOP, TOAST_BOTTOM };
 enum ToastIcon { TOAST_ICON_NONE, TOAST_ICON_UP, TOAST_ICON_DOWN, TOAST_ICON_SELECT, TOAST_ICON_BACK };

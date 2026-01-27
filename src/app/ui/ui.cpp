@@ -347,7 +347,7 @@ int ui_getState(void) {
     // Try to map to old behavior for compatibility
     // 0: Home, 1: Text, 2: Settings Overview, 3: Settings Menu
     if (s_appIndex == 0) return 0;
-    if (s_appIndex == 1) return 1; 
+ 
     if (s_appIndex == 2) {
         if (s_currentView == NULL) return 2;
         return 3;
@@ -368,5 +368,5 @@ int ui_getIndex(void) {
 bool ui_isInApp(void) {
     // Old behavior: strictly when viewing text menu
     // New behavior approximation:
-    return (s_appIndex == 1 && s_currentView != NULL);
+    return false;
 }

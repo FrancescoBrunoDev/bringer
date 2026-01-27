@@ -36,16 +36,11 @@ static void render_news_item(uint8_t index, int16_t x, int16_t y) {
         const auto& item = s_feed.items[index];
         
         // Truncate title if too long
+        // No Truncation: let OLED driver handle 2-lines or scrolling
         String displayTitle = item.title;
-        if (displayTitle.length() > 40) {
-            displayTitle = displayTitle.substring(0, 37) + "...";
-        }
-        
-        char buf[48];
-        snprintf(buf, sizeof(buf), "%s", displayTitle.c_str());
-        oled_drawBigText(buf, x, y, false);
+        oled_drawBigText(displayTitle.c_str(), x, y, false, true);
     } else {
-        oled_drawBigText("No News", x, y, false);
+        oled_drawBigText("No News", x, y, false, true);
     }
 }
 
@@ -59,12 +54,12 @@ static void view_render(int16_t x_offset, int16_t y_offset) {
         
         char buf[32];
         snprintf(buf, sizeof(buf), "Page %d/%d", pageNum, totalPages);
-        oled_drawBigText(buf, x_offset, y_offset, false);
+        oled_drawBigText(buf, x_offset, y_offset, false, true);
         return;
     }
     
     if (s_feed.items.size() == 0) {
-        oled_drawBigText("No Data", x_offset, y_offset, false);
+        oled_drawBigText("No Data", x_offset, y_offset, false, true);
         return;
     }
 

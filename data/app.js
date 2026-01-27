@@ -41,9 +41,9 @@
     if (activeLink) activeLink.classList.add('active');
 
     // Load specific data if needed
-    if (tabName === 'Apps') loadTextOptions();
+
     if (tabName === 'Settings') refreshSettings();
-    if (tabName === 'Apps') loadTextOptions();
+
     if (tabName === 'Settings') refreshSettings();
     if (tabName === 'Logs') refreshLogs();
     if (tabName === 'Epub') loadEpubList();
@@ -91,45 +91,10 @@
   }
 
   // --- Apps Logic ---
-  async function loadTextOptions() {
-    try {
-      var r = await fetch('/apps/text/list');
-      var j = await r.json();
-      var opts = j.options || [];
-      var html = '';
-      if (opts.length === 0) {
-        html = '<div>No text files found.</div>';
-      } else {
-        for (var i = 0; i < opts.length; ++i) {
-          html += '<div>' + i + ': ' + opts[i] + ' <button data-idx="' + i + '">Show</button></div>';
-        }
-      }
-      var container = document.getElementById('textOptions');
-      if (!container) return;
-      container.innerHTML = html;
-      container.querySelectorAll('button[data-idx]').forEach(function (b) {
-        b.addEventListener('click', function () {
-          postSelect(Number(b.getAttribute('data-idx')));
-        });
-      });
-    } catch (e) {
-      console.log('loadTextOptions error', e);
-      var container = document.getElementById('textOptions');
-      if (container) container.innerHTML = 'Error loading list.';
-    }
-  }
 
-  function postSelect(i) {
-    fetch('/apps/text/select', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ index: Number(i) })
-    }).catch(function (e) { console.log('postSelect error', e); });
-  }
 
   // --- Device Actions ---
-  function enterApp() { fetch('/button/select', { method: 'POST' }); }
-  function exitApp() { fetch('/button/back', { method: 'POST' }); }
+
 
   // --- Settings Logic ---
   function postSettingAction(action) {
@@ -255,12 +220,11 @@
 
     // Hook buttons
     var el = function (id) { return document.getElementById(id); };
-    if (el('enterApp')) el('enterApp').addEventListener('click', enterApp);
-    if (el('exitApp')) el('exitApp').addEventListener('click', exitApp);
 
-    if (el('btnRefreshText')) el('btnRefreshText').addEventListener('click', loadTextOptions);
+
+
     if (el('btnRefreshSettings')) el('btnRefreshSettings').addEventListener('click', refreshSettings);
-    if (el('btnRefreshText')) el('btnRefreshText').addEventListener('click', loadTextOptions);
+
     if (el('btnRefreshSettings')) el('btnRefreshSettings').addEventListener('click', refreshSettings);
     if (el('btnRefreshLogs')) el('btnRefreshLogs').addEventListener('click', refreshLogs);
     if (el('btnRefreshEpub')) el('btnRefreshEpub').addEventListener('click', loadEpubList);

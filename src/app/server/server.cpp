@@ -25,7 +25,7 @@
 #include "app/ui/ui.h"
 #include "app/controls/controls.h"
 #include "config.h"
-#include "app/routes/text_app/text_app.h"
+
 #include "app/epub/epub.h"
 
 #include <WebServer.h>
@@ -251,7 +251,7 @@ void server_init() {
   });
 
   // Register routes provided by apps (e.g. /apps/text/*)
-  text_app_register(&server);
+
   EpubApp::registerRoutes(&server);
 
   server.begin();

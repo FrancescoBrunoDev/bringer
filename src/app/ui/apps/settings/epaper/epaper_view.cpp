@@ -15,7 +15,7 @@ static void render_item(uint8_t index, int16_t x, int16_t y) {
       comp_toggle("partial rendering", epd_getPartialEnabled(), x, y);
       break;
     case EPD_FULL_CLEAN:
-      oled_drawBigText("Full clean", x, y, false);
+      oled_drawBigText("Full clean", x, y, false, true);
       break;
   }
 }

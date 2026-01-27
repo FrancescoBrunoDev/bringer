@@ -56,7 +56,7 @@ static void render_book_item(int index, int16_t x, int16_t y) {
     if (lastSlash >= 0) title = title.substring(lastSlash + 1);
     if (title.endsWith(".epub")) title = title.substring(0, title.length() - 5);
     
-    oled_drawBigText(title.c_str(), x, y, false);
+    oled_drawBigText(title.c_str(), x, y, false, true);
 }
 
 static void renderBookList(int16_t x, int16_t y) {
@@ -75,7 +75,9 @@ static void renderBookList(int16_t x, int16_t y) {
     // Do not show progress bar during transition to keep it clean, or show stationary?
     // Settings doesn't show progress bar. We can show it at bottom if y==0
     if (abs(y) < 1) {
-         oled_showProgress("Book", s_state.bookIndex + 1, s_state.bookList.size());
+         char buf[32];
+         snprintf(buf, sizeof(buf), "Book %d/%d", s_state.bookIndex + 1, s_state.bookList.size());
+         oled_drawHeader(buf, x, 52); // Draw as footer
     }
 }
 
@@ -275,7 +277,7 @@ static void render_chapter_item(int index, int16_t x, int16_t y) {
     int idx = name.lastIndexOf('/');
     if (idx >= 0) name = name.substring(idx+1);
     
-    oled_drawBigText(name.c_str(), x, y, false);
+    oled_drawBigText(name.c_str(), x, y, false, true);
 }
 
 // 3. Chapter List View
@@ -501,15 +503,14 @@ static void renderRead(int16_t x, int16_t y) {
          if (idx >= 0) chName = chName.substring(idx+1);
      }
      
-    // OLED shows status
-    char buf[64];
-    snprintf(buf, sizeof(buf), "Ch %d / %d", s_state.chapterIndex + 1, s_state.spine.size());
-    // Line 1: Chapter Name (or file name)
-    // Line 2: Progress
-    oled_showLines(chName.c_str(), buf, x, y);
-    
-    // Page info as progress
-    oled_showProgress("Page", s_state.pageIndex + 1, s_state.totalPages);
+    // Combine info
+    char line2[64];
+    if (s_state.totalPages > 1)
+        snprintf(line2, sizeof(line2), "Ch %d/%d  Pg %d/%d", s_state.chapterIndex + 1, s_state.spine.size(), s_state.pageIndex + 1, s_state.totalPages);
+    else
+        snprintf(line2, sizeof(line2), "Ch %d/%d", s_state.chapterIndex + 1, s_state.spine.size());
+        
+    oled_showLines(chName.c_str(), line2, x, y);
 }
 
 static void saveProgress() {
