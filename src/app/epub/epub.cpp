@@ -9,6 +9,8 @@
 #include <WebServer.h>
 #include <ArduinoJson.h>
 #include <GxEPD2_3C.h>
+#include "utils/zip_utils.h"
+#include "utils/html_utils.h" 
 
 // Zip library removed until valid one found
 // #include <ESP32-targz.h> 
@@ -42,7 +44,6 @@ static bool indexBook(const String& path); // Parse OPF/Spine
 static void loadChapter(int index);
 static void renderRead(int16_t x, int16_t y);
 static void renderPage();
-static void stripTags(String& html);
 static void saveProgress();
 static void loadProgress();
 
@@ -383,112 +384,26 @@ static bool indexBook(const String& path) {
     if(s_state.currentTitle.endsWith(".epub")) 
         s_state.currentTitle = s_state.currentTitle.substring(0, s_state.currentTitle.length()-5);
 
-    File f = LittleFS.open(path, "r");
-    if (!f) {
+    ZipReader reader;
+    if (!reader.open(path)) {
         logger_log("EPUB: Failed to open %s", path.c_str());
         return false;
     }
 
-    size_t fileSize = f.size();
-    if (fileSize < 22) { f.close(); return false; }
-
-    // Find EOCD
-    // Scan last 4KB (or file size)
-    size_t scanSize = (fileSize > 4096) ? 4096 : fileSize;
-    size_t scanStart = fileSize - scanSize;
-    
-    uint8_t buf[1024]; // Process in chunks
-    // We need to find signature 0x50 0x4B 0x05 0x06
-    // It is 4 bytes.
-    
-    uint32_t eocdPos = 0;
-    bool found = false;
-    
-    // Simple scan backwards?
-    // Let's just read the whole tail into a buffer if fits, or chunks logic.
-    // For simplicity on ESP32, let's just seek and read byte by byte backwards from end? slow.
-    // Let's read 1KB blocks from end.
-    
-    // Actually, just reading the last 512 bytes is usually enough if no huge comment.
-    f.seek(scanStart);
-    // Read entirely into heap? 4KB is fine.
-    uint8_t* scanBuf = (uint8_t*)malloc(scanSize);
-    if(!scanBuf) { f.close(); return false; }
-    
-    f.read(scanBuf, scanSize);
-    
-    // Scan backwards
-    for (int i = scanSize - 4; i >= 0; i--) {
-        if (scanBuf[i] == 0x50 && scanBuf[i+1] == 0x4B && scanBuf[i+2] == 0x05 && scanBuf[i+3] == 0x06) {
-            eocdPos = scanStart + i;
-            found = true;
-            break;
+    std::vector<String> files = reader.listFiles("");
+    for (const auto& name : files) {
+        if (name.endsWith(".html") || name.endsWith(".xhtml") || name.endsWith(".htm")) {
+             logger_log("EPUB: Adding chapter: %s", name.c_str());
+             s_state.spine.push_back(name);
         }
     }
     
-    free(scanBuf);
+    reader.close();
     
-    if (!found) {
-        logger_log("EPUB: EOCD not found");
-        f.close();
-        return false; // Not a valid zip or huge comment
-    }
-    
-    // Read EOCD fields
-    f.seek(eocdPos + 10);
-    uint16_t totalEntries = f.read() | (f.read() << 8);
-    // uint32_t cdSize = f.read() | (f.read() << 8) | (f.read() << 16) | (f.read() << 24);
-    f.seek(eocdPos + 16);
-    uint32_t cdOffset = f.read() | (f.read() << 8) | (f.read() << 16) | (f.read() << 24);
-    
-    logger_log("EPUB: CD Offset %d, Entries %d", cdOffset, totalEntries);
-    
-    // Go to Central Directory
-    f.seek(cdOffset);
-    
-    for (int i = 0; i < totalEntries; i++) {
-        if (f.position() >= fileSize) break;
-        
-        // Read CD Header Signature
-        uint8_t sig[4];
-        if (f.read(sig, 4) != 4) break;
-        if (!(sig[0] == 0x50 && sig[1] == 0x4B && sig[2] == 0x01 && sig[3] == 0x02)) {
-             break; // Invalid sig
-        }
-        
-        f.seek(f.position() + 24); // Skip to name len
-        uint16_t nameLen = f.read() | (f.read() << 8);
-        uint16_t extraLen = f.read() | (f.read() << 8);
-        uint16_t commentLen = f.read() | (f.read() << 8);
-        
-        f.seek(f.position() + 12); // Skip rest of header to filename
-        
-        String filename = "";
-        for(int k=0; k<nameLen; k++) filename += (char)f.read();
-        
-        // Filter
-        if (filename.endsWith(".html") || filename.endsWith(".xhtml") || filename.endsWith(".htm")) {
-             logger_log("EPUB: Adding chapter: %s", filename.c_str());
-             s_state.spine.push_back(filename);
-        }
-        
-        // Skip extra and comment
-        f.seek(f.position() + extraLen + commentLen);
-        
-        // Yield to watchdog if needed?
-        if (i % 10 == 0) yield();
-    }
-    
-    f.close();
-    
-    // Sort? CD usually reflects order, but sometimes alphabetical.
-    // Ideally parse OPF. But for now, this is better than broken naive scan.
     std::sort(s_state.spine.begin(), s_state.spine.end());
-    
     logger_log("EPUB: Found %d chapters", s_state.spine.size());
     
-    if (s_state.spine.empty()) return false;
-    return true;
+    return !s_state.spine.empty();
 }
 
 // 2. Read View (Main Reader)
@@ -558,260 +473,7 @@ static void loadProgress() {
     }
 }
 
-// Use uzlib from ESP32-targz for decompression
-#include <uzlib/uzlib.h>
 
-// Helper to get raw data from ZIP based on filename
-static bool getZipEntryData(const String& zipPath, const String& entryName, String& outContent) {
-    File f = LittleFS.open(zipPath, "r");
-    if (!f) return false;
-
-    // We re-scan Central Directory to find the Local Header Offset
-    
-    // 1. Find EOCD
-    size_t fileSize = f.size();
-    if (fileSize < 22) { f.close(); return false; }
-    size_t scanSize = (fileSize > 4096) ? 4096 : fileSize;
-    size_t scanStart = fileSize - scanSize;
-    f.seek(scanStart);
-    uint8_t* scanBuf = (uint8_t*)malloc(scanSize);
-    if (!scanBuf) { f.close(); return false; }
-    f.read(scanBuf, scanSize);
-    
-    uint32_t eocdPos = 0;
-    bool found = false;
-    for (int i = scanSize - 4; i >= 0; i--) {
-        if (scanBuf[i] == 0x50 && scanBuf[i+1] == 0x4B && scanBuf[i+2] == 0x05 && scanBuf[i+3] == 0x06) {
-            eocdPos = scanStart + i;
-            found = true;
-            break;
-        }
-    }
-    free(scanBuf);
-    if (!found) { f.close(); return false; }
-    
-    // 2. Get CD Offset
-    f.seek(eocdPos + 16);
-    uint32_t cdOffset = f.read() | (f.read() << 8) | (f.read() << 16) | (f.read() << 24);
-    f.seek(eocdPos + 10);
-    uint16_t totalEntries = f.read() | (f.read() << 8);
-
-    // 3. Scan CD for entry
-    f.seek(cdOffset);
-    uint32_t localHeaderOffset = 0;
-    bool entryFound = false;
-    uint32_t compSize = 0;
-    uint32_t uncompSize = 0;
-    uint16_t method = 0;
-    
-    logger_log("EPUB: Searching for '%s' in %d entries", entryName.c_str(), totalEntries);
-    
-    int debugCount = 0;
-    for (int i = 0; i < totalEntries; i++) {
-        if (f.position() >= fileSize) break;
-        
-        // Read CD Header Signature
-        uint8_t sig[4];
-        if (f.read(sig, 4) != 4) break;
-        if (!(sig[0] == 0x50 && sig[1] == 0x4B && sig[2] == 0x01 && sig[3] == 0x02)) {
-             break; // Invalid sig
-        }
-        
-        // Read compression method first (at offset 10 from signature start)
-        size_t sigPos = f.position() - 4; // Position of signature
-        f.seek(sigPos + 10);
-        method = f.read() | (f.read() << 8);
-        
-        // Read compressed/uncompressed sizes (at offset 20 from signature)
-        f.seek(sigPos + 20);
-        compSize = f.read() | (f.read() << 8) | (f.read() << 16) | (f.read() << 24);
-        uncompSize = f.read() | (f.read() << 8) | (f.read() << 16) | (f.read() << 24);
-        
-        // Read name/extra/comment lengths (at offset 28 from signature)
-        uint16_t nameLen = f.read() | (f.read() << 8);
-        uint16_t extraLen = f.read() | (f.read() << 8);
-        uint16_t commentLen = f.read() | (f.read() << 8);
-        
-        // Read local header offset (at offset 42 from signature)
-        f.seek(sigPos + 42);
-        localHeaderOffset = f.read() | (f.read() << 8) | (f.read() << 16) | (f.read() << 24);
-        
-        // Read filename (at offset 46 from signature)
-        String fname = "";
-        for(int k=0; k<nameLen; k++) fname += (char)f.read();
-        
-        // Log first few entries to see what we're actually reading
-        if (debugCount < 5) {
-            logger_log("EPUB:   Entry %d (len=%d): '%s'", i, nameLen, fname.c_str());
-            debugCount++;
-        }
-        
-        if (fname == entryName) {
-            logger_log("EPUB: Found entry! method=%d, comp=%d, uncomp=%d", method, compSize, uncompSize);
-            entryFound = true;
-            break;
-        }
-        
-        f.seek(f.position() + extraLen + commentLen);
-    }
-    
-    if (!entryFound) { 
-        logger_log("EPUB: Entry '%s' not found in archive", entryName.c_str());
-        f.close(); 
-        return false; 
-    }
-    
-    // 4. Go to Local Header
-    f.seek(localHeaderOffset);
-    f.seek(f.position() + 26);
-    uint16_t n = f.read() | (f.read() << 8);
-    uint16_t m = f.read() | (f.read() << 8);
-    f.seek(f.position() + n + m);
-    
-    // 5. Read Data
-    if (uncompSize > 32*1024) uncompSize = 32*1024;
-    if (compSize > 64*1024) { f.close(); return false; }
-
-    if (method == 0) {
-        // STORED
-        if (compSize > 0) {
-            uint8_t* raw = (uint8_t*)malloc(compSize + 1);
-            if (raw) {
-                f.read(raw, compSize);
-                raw[compSize] = 0;
-                outContent = (char*)raw;
-                free(raw);
-            }
-        }
-    } else if (method == 8) {
-        // DEFLATE using uzlib
-        logger_log("EPUB: Decompressing DEFLATE (comp:%d, uncomp:%d)", compSize, uncompSize);
-        uint8_t* compData = (uint8_t*)malloc(compSize);
-        if(!compData) { 
-            logger_log("EPUB: Failed to alloc comp buffer");
-            f.close(); 
-            return false; 
-        }
-        
-        f.read(compData, compSize);
-        
-        uint8_t* uncompData = (uint8_t*)malloc(uncompSize + 1);
-        if(!uncompData) { 
-            logger_log("EPUB: Failed to alloc uncomp buffer");
-            free(compData); 
-            f.close(); 
-            return false; 
-        }
-        
-        // Initialize uzlib decompressor
-        TINF_DATA d;
-        uzlib_init();
-        d.source = compData;
-        d.source_limit = compData + compSize;
-        d.destStart = uncompData;
-        d.dest = uncompData;
-        
-        // ZIP uses raw DEFLATE (no zlib/gzip headers)
-        uzlib_uncompress_init(&d, NULL, 0);
-        int res = uzlib_uncompress(&d);
-        
-        logger_log("EPUB: Decompress result: %d", res);
-        
-        if (res == TINF_DONE) {
-            size_t actualSize = d.dest - uncompData;
-            uncompData[actualSize] = 0;
-            outContent = (char*)uncompData;
-            logger_log("EPUB: Decompressed %d bytes", actualSize);
-        } else {
-            logger_log("EPUB: Decompression failed with code %d", res);
-            outContent = "Decompression Failed";
-        }
-        
-        free(uncompData);
-        free(compData);
-    }
-    
-    f.close();
-    return true;
-}
-
-static void stripTags(String& html) {
-    String result = "";
-    result.reserve(html.length());
-    
-    bool inTag = false;
-    bool inScript = false;
-    bool inStyle = false;
-    
-    for (int i = 0; i < html.length(); i++) {
-        char c = html.charAt(i);
-        
-        // Check for script/style tags
-        if (c == '<' && i + 7 < html.length()) {
-            String tag = html.substring(i, i + 8);
-            tag.toLowerCase();
-            if (tag.startsWith("<script")) inScript = true;
-            if (tag.startsWith("<style")) inStyle = true;
-        }
-        if (c == '<' && i + 8 < html.length()) {
-            String tag = html.substring(i, i + 9);
-            tag.toLowerCase();
-            if (tag == "</script>") inScript = false;
-            if (tag == "</style>") inStyle = false;
-        }
-        
-        if (c == '<') {
-            inTag = true;
-        } else if (c == '>') {
-            inTag = false;
-        } else if (!inTag && !inScript && !inStyle) {
-            // Handle HTML entities
-            if (c == '&' && i + 3 < html.length()) {
-                String entity = "";
-                int j = i + 1;
-                while (j < html.length() && j < i + 10 && html.charAt(j) != ';') {
-                    entity += html.charAt(j);
-                    j++;
-                }
-                if (j < html.length() && html.charAt(j) == ';') {
-                    // Common entities
-                    if (entity == "nbsp") result += ' ';
-                    else if (entity == "lt") result += '<';
-                    else if (entity == "gt") result += '>';
-                    else if (entity == "amp") result += '&';
-                    else if (entity == "quot") result += '"';
-                    else if (entity == "apos") result += '\'';
-                    else if (entity == "ndash" || entity == "mdash") result += '-';
-                    else if (entity == "hellip") result += "...";
-                    else if (entity == "rsquo" || entity == "lsquo") result += '\'';
-                    else if (entity == "rdquo" || entity == "ldquo") result += '"';
-                    else result += ' '; // Unknown entity, add space
-                    i = j;
-                    continue;
-                }
-            }
-            result += c;
-        }
-    }
-    
-    // Clean up multiple spaces and newlines
-    String cleaned = "";
-    bool lastWasSpace = false;
-    for (int i = 0; i < result.length(); i++) {
-        char c = result.charAt(i);
-        if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
-            if (!lastWasSpace) {
-                cleaned += ' ';
-                lastWasSpace = true;
-            }
-        } else {
-            cleaned += c;
-            lastWasSpace = false;
-        }
-    }
-    
-    html = cleaned;
-}
 
 static void loadChapter(int index) {
     if (index < 0 || index >= s_state.spine.size()) return;
@@ -821,14 +483,20 @@ static void loadChapter(int index) {
     oled_showStatus("Loading...");
     
     String content;
-    bool success = getZipEntryData(s_state.currentBookPath, chName, content);
+    ZipReader reader;
+    bool success = false;
+    
+    if (reader.open(s_state.currentBookPath)) {
+        success = reader.readFile(chName, content);
+        reader.close();
+    }
     
     if (success && content.length() > 0) {
          logger_log("EPUB: Loaded %d bytes", content.length());
          s_state.currentChapterText = content;
          
          // Strip HTML tags
-         stripTags(s_state.currentChapterText);
+         s_state.currentChapterText = html_strip_tags(s_state.currentChapterText);
          logger_log("EPUB: After strip: %d bytes", s_state.currentChapterText.length());
     } else {
          logger_log("EPUB: Failed to load chapter");

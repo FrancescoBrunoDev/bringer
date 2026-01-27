@@ -39,6 +39,22 @@
 static WebServer server(WEB_SERVER_PORT);
 
 // --- Handlers ---
+
+static void send_error(int code, const char* msg) {
+    char buf[128];
+    snprintf(buf, sizeof(buf), "{\"error\":\"%s\"}", msg);
+    server.send(code, "application/json", buf);
+}
+
+static void send_success(const char* action = NULL) {
+    if (action) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "{\"status\":\"ok\",\"action\":\"%s\"}", action);
+        server.send(200, "application/json", buf);
+    } else {
+        server.send(200, "application/json", "{\"status\":\"ok\"}");
+    }
+}
 static void serve_file_from_littlefs(const char* path, const char* mime) {
   // Serve a static file from LittleFS. If the file is missing, return 404.
   if (!LittleFS.exists(path)) {
@@ -101,7 +117,7 @@ static void handleSetText() {
     uint16_t col = (color == "black") ? GxEPD_BLACK : GxEPD_RED;
     logger_log("SetText (form): %s", text.c_str());
     epd_displayText(text, col, false);
-    server.send(200, "application/json", "{\"status\":\"ok\"}");
+    send_success();
     return;
   }
 
@@ -110,7 +126,7 @@ static void handleSetText() {
   auto err = deserializeJson(doc, body);
   if (err) {
     logger_log("SetText error: invalid json");
-    server.send(400, "application/json", "{\"error\":\"invalid json\"}");
+    send_error(400, "invalid json");
     return;
   }
   const char* txt = doc["text"] | "";
@@ -134,7 +150,7 @@ static void handleSetText() {
 static void handleImageUpload() {
   String body = server.arg("plain");
   if (body.length() == 0) {
-    server.send(400, "application/json", "{\"error\":\"empty body\"}");
+    send_error(400, "empty body");
     return;
   }
 
@@ -142,7 +158,7 @@ static void handleImageUpload() {
   DynamicJsonDocument doc(body.length() + 1024);
   auto err = deserializeJson(doc, body);
   if (err) {
-    server.send(400, "application/json", "{\"error\":\"invalid json\"}");
+    send_error(400, "invalid json");
     return;
   }
 
@@ -154,7 +170,7 @@ static void handleImageUpload() {
   bool forceFull = doc["forceFull"] | false;
 
   if (width <= 0 || height <= 0 || strlen(data_b64) == 0) {
-    server.send(400, "application/json", "{\"error\":\"missing fields\"}");
+    send_error(400, "missing fields");
     return;
   }
 
@@ -162,7 +178,7 @@ static void handleImageUpload() {
   std::vector<uint8_t> img;
   if (!base64_decode(String(data_b64), img)) {
     logger_log("ImageUpload: base64 error");
-    server.send(400, "application/json", "{\"error\":\"base64 decode failed\"}");
+    send_error(400, "base64 decode failed");
     return;
   }
 
@@ -171,7 +187,7 @@ static void handleImageUpload() {
   bool ok = epd_drawImageFromBitplanes(width, height, img, format, color, forceFull);
   if (!ok) {
     logger_log("ImageUpload: draw failed");
-    server.send(400, "application/json", "{\"error\":\"invalid image or format\"}");
+    send_error(400, "invalid image or format");
     return;
   }
 
@@ -188,23 +204,23 @@ static void handleClear() {
   // Simple full white clear
   logger_log("Cmd: Clear");
   epd_clear();
-  server.send(200, "application/json", "{\"status\":\"cleared\"}");
+  send_success("cleared");
 }
 
 // Virtual button handlers (simulate physical buttons via HTTP)
 static void handleButtonNext() {
   ui_next();
-  server.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"next\"}");
+  send_success("next");
 }
 
 static void handleButtonSelect() {
   ui_select();
-  server.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"select\"}");
+  send_success("select");
 }
 
 static void handleButtonBack() {
   ui_back();
-  server.send(200, "application/json", "{\"status\":\"ok\",\"action\":\"back\"}");
+  send_success("back");
 }
 
 // --- Public API ---

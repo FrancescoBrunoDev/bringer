@@ -36,7 +36,4 @@ private:
     
     // Helper to extract text between tags
     String extractTag(const String& xml, const String& tag, size_t& pos);
-    
-    // Helper to decode HTML entities
-    String decodeHTML(const String& str);
 };

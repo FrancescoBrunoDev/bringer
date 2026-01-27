@@ -1,6 +1,7 @@
 #include "rss.h"
-#include <HTTPClient.h>
-#include <WiFi.h>
+#include "utils/network_utils.h"
+#include "utils/html_utils.h"
+#include "utils/logger/logger.h"
 
 RSSService& RSSService::getInstance() {
     static RSSService instance;
@@ -13,30 +14,8 @@ bool RSSService::fetchNYT(RSSFeed& feed, size_t maxItems) {
 }
 
 bool RSSService::fetchFeed(const String& url, RSSFeed& feed, size_t maxItems) {
-    if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("WiFi not connected");
-        return false;
-    }
-    
-    HTTPClient http;
-    http.begin(url);
-    http.setTimeout(10000); // 10 second timeout
-    
-    int httpCode = http.GET();
-    
-    if (httpCode != HTTP_CODE_OK) {
-        Serial.printf("HTTP GET failed, error: %d\n", httpCode);
-        http.end();
-        return false;
-    }
-    
-    String payload = http.getString();
-    http.end();
-    
-    if (payload.length() == 0) {
-        Serial.println("Empty response");
-        return false;
-    }
+    String payload = net_httpGet(url);
+    if (payload.length() == 0) return false;
     
     return parseRSS(payload, feed, maxItems);
 }
@@ -56,27 +35,10 @@ String RSSService::extractTag(const String& xml, const String& tag, size_t& pos)
     
     String content = xml.substring(start, end);
     content.trim();
-    return decodeHTML(content);
+    return html_decode_entities(content);
 }
 
-String RSSService::decodeHTML(const String& str) {
-    String result = str;
-    
-    // Common HTML entities
-    result.replace("&amp;", "&");
-    result.replace("&lt;", "<");
-    result.replace("&gt;", ">");
-    result.replace("&quot;", "\"");
-    result.replace("&apos;", "'");
-    result.replace("&#39;", "'");
-    result.replace("&nbsp;", " ");
-    
-    // Remove CDATA tags if present
-    result.replace("<![CDATA[", "");
-    result.replace("]]>", "");
-    
-    return result;
-}
+
 
 bool RSSService::parseRSS(const String& xml, RSSFeed& feed, size_t maxItems) {
     feed.items.clear();
@@ -87,7 +49,7 @@ bool RSSService::parseRSS(const String& xml, RSSFeed& feed, size_t maxItems) {
     // Find channel section
     int channelStart = xml.indexOf("<channel>");
     if (channelStart == -1) {
-        Serial.println("No channel found in RSS");
+        logger_log("RSS: No channel found");
         return false;
     }
     
@@ -147,6 +109,6 @@ bool RSSService::parseRSS(const String& xml, RSSFeed& feed, size_t maxItems) {
         pos = itemEnd + 7;
     }
     
-    Serial.printf("Parsed %d items from RSS feed\n", feed.items.size());
+    logger_log("RSS: Parsed %d items", feed.items.size());
     return feed.items.size() > 0;
 }

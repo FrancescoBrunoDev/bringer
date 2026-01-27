@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include "utils/logger/logger.h"
 
 // Create the Adafruit display instance.
 static Adafruit_SSD1306 s_oled(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
@@ -64,7 +65,7 @@ void oled_init(uint8_t sda, uint8_t scl, uint8_t address) {
 
   s_i2c_addr = address;
   if (!s_oled.begin(SSD1306_SWITCHCAPVCC, s_i2c_addr)) {
-    Serial.println("oled_init: SSD1306 init failed");
+    logger_log("oled_init: SSD1306 init failed");
     s_available = false;
     UNLOCK_OLED();
     return;
@@ -79,7 +80,7 @@ void oled_init(uint8_t sda, uint8_t scl, uint8_t address) {
   s_u8g2.setBackgroundColor(SSD1306_BLACK);
 
   s_available = true;
-  Serial.println("oled_init: OK");
+  logger_log("oled_init: OK");
   UNLOCK_OLED();
 }
 
@@ -130,7 +131,7 @@ static void _drawCenteredText(const char *msg, uint8_t textSize) {
 void oled_showStatus(const char *msg) {
   LOCK_OLED();
   if (!s_available || s_menu_mode) {
-    if (s_menu_mode) Serial.printf("OLED STATUS suppressed: %s\n", msg);
+    if (s_menu_mode) logger_log("OLED STATUS suppressed: %s", msg);
     UNLOCK_OLED();
     return;
   }

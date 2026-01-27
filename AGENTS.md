@@ -120,12 +120,16 @@ Style guidelines (applies to C++/Arduino code)
 
 - Error handling
   - Prefer boolean return values for simple validation (e.g. `bool epd_drawImageFromBitplanes(...)`) and document error causes.
-  - For HTTP endpoints: return proper HTTP codes (200 for success; 400 for client error; 500 for server error). Responses should be JSON when the endpoint normally returns JSON.
-  - Log helpful serial messages (`Serial.println`) for recoverable errors and provide minimal user-facing JSON errors for API clients.
+  - For HTTP endpoints: return proper HTTP codes (200 for success; 400 for client error; 500 for server error). Responses should be JSON when the endpoint normally returns JSON. Use helpers `send_success` and `send_error` in `server.cpp`.
+  - Log errors using `logger_log` rather than `Serial`.
 
 - Logging & diagnostics
-  - Use `Serial` for debug output. Keep messages concise and add a prefix when useful (e.g. `HTTP:` `EPD:`).
-  - Avoid printing large binary blobs to serial.
+  - Use `logger_log` for all debug output. This centralizes logging and allows future redirection (e.g. to web UI).
+  - Avoid using raw `Serial.print` or `Serial.println`.
+
+- Network & HTTP
+  - Use `src/utils/network_utils` (`net_httpGet`) for valid HTTP requests. This utility handles WiFi checks, timeouts (default 10s), and HTTPS validation automatically.
+  - Do not implement raw `HTTPClient` logic in app services unless necessary.
 
 - Modules & public API surface
   - Prefix module-level functions with the module name: `epd_...`, `ui_...`, `controls_...`, `wifi_...`.
