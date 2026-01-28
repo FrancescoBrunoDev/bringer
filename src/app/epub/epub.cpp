@@ -277,6 +277,11 @@ static void render_chapter_item(int index, int16_t x, int16_t y) {
     // Strip path
     int idx = name.lastIndexOf('/');
     if (idx >= 0) name = name.substring(idx+1);
+
+    // Remove extension
+    if (name.endsWith(".html")) name = name.substring(0, name.length() - 5);
+    else if (name.endsWith(".xhtml")) name = name.substring(0, name.length() - 6);
+    else if (name.endsWith(".htm")) name = name.substring(0, name.length() - 4);
     
     oled_drawBigText(name.c_str(), x, y, false, true);
 }
@@ -390,13 +395,30 @@ static bool indexBook(const String& path) {
         return false;
     }
 
-    std::vector<String> files = reader.listFiles("");
-    for (const auto& name : files) {
+    // Use callback-based scanning to save memory (don't load all filenames)
+    int count = 0;
+    uint32_t startHeap = ESP.getFreeHeap();
+    logger_log("EPUB: Starting index. Heap: %d", startHeap);
+    
+    reader.processFileEntries([&](const String& name) -> bool {
         if (name.endsWith(".html") || name.endsWith(".xhtml") || name.endsWith(".htm")) {
-             logger_log("EPUB: Adding chapter: %s", name.c_str());
+             // Only log every 5 chapters to save serial time
+             if (count % 5 == 0) {
+                 logger_log("EPUB: Found ch %d: %s (Heap: %d)", count, name.c_str(), ESP.getFreeHeap());
+             }
              s_state.spine.push_back(name);
+             count++;
+             
+             // Safety limit for now to see if it's purely memory capacity
+             if (count > 200) {
+                 logger_log("EPUB: Limit reached (200 chapters). Stopping scan.");
+                 return false;
+             }
         }
-    }
+        return true;
+    });
+    
+    logger_log("EPUB: Index done. Chapters: %d. Heap: %d", s_state.spine.size(), ESP.getFreeHeap());
     
     reader.close();
     
@@ -416,6 +438,11 @@ static void renderRead(int16_t x, int16_t y) {
          // Clean up name (remove path)
          int idx = chName.lastIndexOf('/');
          if (idx >= 0) chName = chName.substring(idx+1);
+
+         // Remove extension
+         if (chName.endsWith(".html")) chName = chName.substring(0, chName.length() - 5);
+         else if (chName.endsWith(".xhtml")) chName = chName.substring(0, chName.length() - 6);
+         else if (chName.endsWith(".htm")) chName = chName.substring(0, chName.length() - 4);
      }
      
     // Combine info
@@ -482,25 +509,50 @@ static void loadChapter(int index) {
     logger_log("EPUB: Loading chapter %d: %s", index, chName.c_str());
     oled_showStatus("Loading...");
     
-    String content;
+    uint8_t* rawBuf = NULL;
+    size_t rawSize = 0;
     ZipReader reader;
     bool success = false;
     
+    logger_log("EPUB: Opening ZIP...");
     if (reader.open(s_state.currentBookPath)) {
-        success = reader.readFile(chName, content);
+        logger_log("EPUB: ZIP opened, calling readBinary...");
+        success = reader.readBinary(chName, &rawBuf, &rawSize);
+        logger_log("EPUB: readBinary returned: %d", success);
         reader.close();
+    } else {
+        logger_log("EPUB: Failed to open ZIP");
     }
     
-    if (success && content.length() > 0) {
-         logger_log("EPUB: Loaded %d bytes", content.length());
-         s_state.currentChapterText = content;
+    if (success && rawBuf && rawSize > 0) {
+         logger_log("EPUB: Loaded %d bytes, heap: %d", rawSize, ESP.getFreeHeap());
          
-         // Strip HTML tags
-         s_state.currentChapterText = html_strip_tags(s_state.currentChapterText);
-         logger_log("EPUB: After strip: %d bytes", s_state.currentChapterText.length());
+         logger_log("EPUB: Calling html_strip_tags_inplace...");
+         // In-place strip
+         // Treat rawBuf as char* (assuming it's text/html)
+         // Ensure null termination just in case (readBinary does it)
+         html_strip_tags_inplace((char*)rawBuf, rawSize);
+         
+         logger_log("EPUB: HTML stripped, assigning to String...");
+         // Now rawBuf contains the stripped text
+         // We can now assign it to String, or better yet, if we can keep it as char*?
+         // s_state.currentChapterText is a String.
+         // Assigning char* to String will copy it.
+         // But at least we didn't have 3 copies in memory at once (Raw+String+Result).
+         // We only had Raw -> (processed in place) -> Copy to String.
+         // Still 2 copies effectively for a moment, but avoiding the big intermediate "HTML String" object.
+         
+         s_state.currentChapterText = (char*)rawBuf;
+         
+         logger_log("EPUB: String assigned");
+         size_t plainSize = s_state.currentChapterText.length();
+         logger_log("EPUB: After strip: %d bytes (was %d)", plainSize, rawSize);
+         
+         free(rawBuf); // Modified buffer is freed
     } else {
          logger_log("EPUB: Failed to load chapter");
          s_state.currentChapterText = "Error loading chapter: " + chName;
+         if (rawBuf) free(rawBuf);
     }
 
     // Clean HTML tags (basic strip)
@@ -551,6 +603,8 @@ void registerRoutes(void* serverPtr) {
         server->send(200, "text/plain", "OK");
     }, [server](){
         HTTPUpload& upload = server->upload();
+        static File uploadFile;
+
         if (upload.status == UPLOAD_FILE_START) {
             String filename = upload.filename;
             if(!filename.startsWith("/")) filename = "/" + filename;
@@ -564,25 +618,26 @@ void registerRoutes(void* serverPtr) {
             // Ensure dir
             if (!LittleFS.exists("/epubs")) LittleFS.mkdir("/epubs");
             
-            File f = LittleFS.open(path, "w");
-            if (!f) {
-                logger_log("Failed to open %s", path.c_str());
+            // If exists, delete first to clear
+            if (LittleFS.exists(path)) LittleFS.remove(path);
+
+            uploadFile = LittleFS.open(path, "w");
+            if (!uploadFile) {
+                logger_log("Failed to open %s for writing", path.c_str());
+            } else {
+                logger_log("Upload Start: %s", path.c_str());
             }
-            f.close(); // just create
-            logger_log("Upload Start: %s", path.c_str());
         } else if (upload.status == UPLOAD_FILE_WRITE) {
-            String filename = upload.filename;
-            if(!filename.startsWith("/")) filename = "/" + filename;
-            String path = "/epubs/" + filename;
-             path.replace("//", "/");
-             
-            File f = LittleFS.open(path, "a");
-            if (f) {
-                f.write(upload.buf, upload.currentSize);
-                f.close();
+            if (uploadFile) {
+                uploadFile.write(upload.buf, upload.currentSize);
             }
         } else if (upload.status == UPLOAD_FILE_END) {
-             logger_log("Upload End: %d bytes", upload.totalSize);
+             if (uploadFile) {
+                 uploadFile.close();
+                 logger_log("Upload End: %d bytes", upload.totalSize);
+             } else {
+                 logger_log("Upload End: File was not open");
+             }
         }
     });
 
