@@ -347,6 +347,8 @@ const App APP_EPUB = {
     .name = "Epub Reader",
     .renderPreview = app_renderPreview,
     .onSelect = app_onSelect,
+    .setup = nullptr,
+    .registerRoutes = EpubApp::registerRoutes,
     .poll = NULL
 };
 

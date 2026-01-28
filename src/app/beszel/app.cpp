@@ -1,11 +1,16 @@
-#include "apps.h"
-#include "../../beszel/beszel.h"
-#include "../common/components.h"
-#include "../ui_internal.h"
+#include "beszel.h"
+#include "app/ui/ui_internal.h"
+#include "app/ui/common/types.h"
+#include "app/ui/common/components.h"
 #include "drivers/oled/oled.h"
 #include "drivers/epaper/display.h"
+#include "drivers/epaper/layout.h"
 #include <GxEPD2_3C.h>
+#include <Arduino.h>
 
+extern const App APP_BESZEL;
+
+// State
 static uint8_t s_index = 0;
 static uint8_t s_prevIndex = 0;
 static unsigned long s_lastFetch = 0;
@@ -28,9 +33,6 @@ static void render_system_item(uint8_t index, int16_t x, int16_t y) {
         char buf[32];
         snprintf(buf, sizeof(buf), "%s", sys.name.c_str());
         oled_drawBigText(buf, x, y, false);
-        
-        // draw status or cpu below if needed, but big text takes most space
-        // let's use a small label if we had a component for it
     } else {
         oled_drawBigText("No Systems", x, y, false);
     }
@@ -50,8 +52,6 @@ static void view_render(int16_t x_offset, int16_t y_offset) {
         render_system_item(s_prevIndex, x_offset, y_offset > 0 ? y_offset - 64 : y_offset + 64);
     }
 }
-
-#include "drivers/epaper/layout.h"
 
 static void update_epaper(const BeszelSystem& sys) {
     if (epd_isBusy()) {
@@ -117,28 +117,25 @@ static float view_get_progress(void) {
 }
 
 static void view_poll(void) {
-    if (millis() - s_lastFetch > FETCH_INTERVAL) {
-        // Maybe don't fetch automatically while in view to avoid blocking UI
-        // or fetch if requested.
-    }
+    // Optional: auto-fetch in foreground
 }
 
 static const View VIEW_BESZEL = {
-    "Beszel",
-    view_render,
-    view_next,
-    view_prev,
-    view_select,
-    view_back,
-    view_poll,
-    view_get_progress
+    .title = "Beszel",
+    .render = view_render,
+    .onNext = view_next,
+    .onPrev = view_prev,
+    .onSelect = view_select,
+    .onBack = view_back,
+    .poll = view_poll,
+    .getScrollProgress = view_get_progress
 };
 
-static void app_renderPreview(int16_t x_offset, int16_t y_offset) {
+static void app_renderPreview(int16_t x, int16_t y) {
     auto count = BeszelService::getInstance().getSystemCount();
     char buf[16];
     snprintf(buf, sizeof(buf), "%zu nodes", count);
-    comp_title_and_text("Beszel", count > 0 ? buf : "No data", x_offset, y_offset, false);
+    comp_title_and_text("Beszel", count > 0 ? buf : "No data", x, y, false);
 }
 
 static void app_select(void) {
@@ -149,14 +146,15 @@ static void app_select(void) {
     }
 }
 
-static void app_poll(void) {
-    // Periodically fetch data in background?
-    // BeszelService is singleton, we can keep it updated
+static void app_setup(void) {
+    BeszelService::getInstance().begin("https://beszel.francesco-bruno.com/");
 }
 
 const App APP_BESZEL = {
-    "Beszel",
-    app_renderPreview,
-    app_select,
-    app_poll
+    .name = "Beszel",
+    .renderPreview = app_renderPreview,
+    .onSelect = app_select,
+    .setup = app_setup,
+    .registerRoutes = nullptr,
+    .poll = nullptr 
 };

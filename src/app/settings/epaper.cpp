@@ -1,9 +1,10 @@
-#include "../settings_internal.h"
-#include "../../../common/components.h"
+#include "settings.h"
+#include "app/ui/common/components.h"
 #include "drivers/epaper/display.h"
 #include "drivers/oled/oled.h"
-#include "../../../ui_internal.h"
+#include "app/ui/ui_internal.h"
 #include <stdio.h>
+#include <Arduino.h>
 
 enum EpdItem : uint8_t { EPD_PARTIAL = 0, EPD_FULL_CLEAN, EPD_COUNT };
 static uint8_t s_index = 0;
@@ -67,12 +68,12 @@ static float view_get_progress(void) {
 }
 
 const View VIEW_SETTINGS_EPAPER = {
-    "Settings > E-Paper",
-    view_render,
-    view_next,
-    view_prev,
-    view_select,
-    view_back,
-    NULL,
-    view_get_progress
+    .title = "Settings > E-Paper",
+    .render = view_render,
+    .onNext = view_next,
+    .onPrev = view_prev,
+    .onSelect = view_select,
+    .onBack = view_back,
+    .poll = NULL,
+    .getScrollProgress = view_get_progress
 };

@@ -1,8 +1,9 @@
-#include "../settings_internal.h"
+#include "settings.h"
 #include "app/wifi/wifi.h"
 #include "drivers/oled/oled.h"
-#include "../../../ui_internal.h"
+#include "app/ui/ui_internal.h"
 #include <stdio.h>
+#include <Arduino.h>
 
 enum WifiItem : uint8_t { WIFI_SSID_INFO = 0, WIFI_IP_INFO, WIFI_COUNT };
 static uint8_t s_index = 0;
@@ -54,12 +55,12 @@ static float view_get_progress(void) {
 }
 
 const View VIEW_SETTINGS_WIFI = {
-    "Settings > Wifi",
-    view_render,
-    view_next,
-    view_prev,
-    NULL,
-    view_back,
-    NULL,
-    view_get_progress
+    .title = "Settings > Wifi",
+    .render = view_render,
+    .onNext = view_next,
+    .onPrev = view_prev,
+    .onSelect = NULL,
+    .onBack = view_back,
+    .poll = NULL,
+    .getScrollProgress = view_get_progress
 };

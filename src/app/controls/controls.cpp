@@ -141,20 +141,6 @@ void controls_setConfirmLongCallback(controls_button_cb_t cb) {
   s_confirm_long_cb = cb;
 }
 
-// Backwards-compatible wrappers (old names)
-void controls_setClearCallback(controls_button_cb_t cb) {
-  s_prev_cb = cb;
-}
-void controls_setToggleCallback(controls_button_cb_t cb) {
-  s_next_cb = cb;
-}
-void controls_setClearLongCallback(controls_button_cb_t cb) {
-  s_prev_long_cb = cb;
-}
-void controls_setToggleLongCallback(controls_button_cb_t cb) {
-  s_next_long_cb = cb;
-}
-
 void controls_setLongPressMs(unsigned long ms) {
   s_longPressMs = ms;
 }
@@ -167,9 +153,7 @@ void controls_setUseDefaultActions(bool enable) {
 uint8_t controls_getPrevPin(void) { return s_prevBtn.pin; }
 uint8_t controls_getNextPin(void) { return s_nextBtn.pin; }
 uint8_t controls_getConfirmPin(void) { return s_confirmBtn.pin; }
-// Backwards-compatible names
-uint8_t controls_getClearPin(void) { return s_prevBtn.pin; }
-uint8_t controls_getTogglePin(void) { return s_nextBtn.pin; }
+
 // Read raw digital state of a pin (convenience wrapper)
 int controls_readPin(uint8_t pin) { return digitalRead(pin); }
 

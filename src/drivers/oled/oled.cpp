@@ -515,6 +515,17 @@ void oled_showToast(const char *msg, uint32_t ms, ToastPos pos, ToastIcon icon) 
   UNLOCK_OLED();
 }
 
+void oled_drawText(const char *text, int16_t x, int16_t y) {
+    LOCK_OLED();
+    if (!s_available) { UNLOCK_OLED(); return; }
+    s_u8g2.setFont(u8g2_font_profont11_tr);
+    s_u8g2.setForegroundColor(SSD1306_WHITE);
+    s_u8g2.setBackgroundColor(SSD1306_BLACK);
+    s_u8g2.setCursor(x, y);
+    s_u8g2.print(text);
+    UNLOCK_OLED();
+}
+
 void oled_showHoldToast(ToastPos pos, ToastIcon icon, float progress) {
     LOCK_OLED();
     s_toast_msg = "";

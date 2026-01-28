@@ -139,6 +139,12 @@ enum ToastIcon { TOAST_ICON_NONE, TOAST_ICON_UP, TOAST_ICON_DOWN, TOAST_ICON_SEL
 void oled_showToast(const char *msg, uint32_t ms, ToastPos pos = TOAST_BOTTOM, ToastIcon icon = TOAST_ICON_NONE);
 
 /**
+ * oled_drawText
+ * Draw a small text at custom position.
+ */
+void oled_drawText(const char *text, int16_t x, int16_t y);
+
+/**
  * oled_drawToggle
  * Draw a modern graphical toggle switch with a label.
  */

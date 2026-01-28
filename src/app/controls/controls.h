@@ -43,15 +43,6 @@ void controls_setPrevLongCallback(controls_button_cb_t cb);
 void controls_setNextLongCallback(controls_button_cb_t cb);
 void controls_setConfirmLongCallback(controls_button_cb_t cb);
 
-// (Compat) Keep historic names for compatibility; these are simple wrappers
-void controls_setClearCallback(controls_button_cb_t cb);
-void controls_setToggleCallback(controls_button_cb_t cb);
-void controls_setClearLongCallback(controls_button_cb_t cb);
-void controls_setToggleLongCallback(controls_button_cb_t cb);
-
-// (Optional) Set long-press threshold in ms (default 1000 ms)
-void controls_setLongPressMs(unsigned long ms);
-
 // If true, the module registers default actions.
 // If false, only registered callbacks will be invoked.
 void controls_setUseDefaultActions(bool enable);
@@ -61,9 +52,7 @@ void controls_setUseDefaultActions(bool enable);
 uint8_t controls_getPrevPin(void);
 uint8_t controls_getNextPin(void);
 uint8_t controls_getConfirmPin(void);
-// Return legacy names
-uint8_t controls_getClearPin(void);
-uint8_t controls_getTogglePin(void);
+
 // Returns the hold progress (0.0 to 1.0) of the confirm button relative to the long-press threshold
 float controls_getConfirmHoldProgress(void);
 

@@ -26,6 +26,13 @@ struct App {
     // Usually switches the current view to the app's internal view.
     void (*onSelect)(void);
 
+    // Optional: called once at system startup
+    void (*setup)(void);
+
+    // Optional: called to register HTTP routes
+    // Takes a pointer to the WebServer (void* to avoid circular dependency)
+    void (*registerRoutes)(void* serverPtr);
+
     // Optional: called periodically (e.g. for background updates)
     void (*poll)(void);
 };

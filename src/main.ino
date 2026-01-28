@@ -9,16 +9,18 @@
 #include "drivers/epaper/display.h"
 #include "app/wifi/wifi.h"
 #include "app/server/server.h"
-#include "app/beszel/beszel.h"
 
-/*
-  Minimal main.ino after refactor
-  - Initializes serial, display, WiFi and HTTP server
-  - Keeps loop() minimal: delegate request handling to the server module
-*/
+// Apps
+#include "app/registry.h"
+#include "app/dashboard/dashboard.h"
+#include "app/epub/epub.h"
+// Beszel App (wrapper)
+extern const App APP_BESZEL; // Defined in src/app/beszel/app.cpp
+// RSS App
+extern const App APP_RSS;    // Defined in src/app/rss/app.cpp
+// Settings App
+extern const App APP_SETTINGS; // Defined in src/app/settings/app.cpp
 
-// Buttons handled in controls module (src/app/controls)
-// Defaults: clear=12, toggle=13
 #include "app/controls/controls.h"
 #include "app/ui/ui.h"
 
@@ -27,50 +29,53 @@ void setup() {
   delay(100);
 
   // Initialize controls (buttons): pins are defined in src/config.h
-  // (can still be overridden via build flags if config.h guards are respected)
   controls_init(PIN_BUTTON_PREV, PIN_BUTTON_NEXT, PIN_BUTTON_CONFIRM);
 
-  // Initialize display hardware (SPI init is done inside epd_init)
+  // Initialize display hardware
   epd_init();
 
-  // Connect to WiFi (STA) or start AP fallback
+  // Connect to WiFi
   connectWiFi();
 
-  // Mount LittleFS so the device can serve static files (index.html / app.js / style.css).
-  // If the mount fails the web UI files will not be available and UI requests will return 404.
+  // Mount LittleFS
   if (LittleFS.begin()) {
     Serial.println("LittleFS mounted");
   } else {
-    Serial.println("LittleFS mount failed: web UI files not available; UI requests will return 404");
+    Serial.println("LittleFS mount failed");
   }
 
-  // Start the HTTP server and register endpoints
+  // Register Apps
+  AppRegistry::registerApp(&APP_DASHBOARD); // System App (0)
+  AppRegistry::registerApp(&APP_EPUB);      // Epub Reader (1)
+  AppRegistry::registerApp(&APP_RSS);       // RSS Reader (2)
+  AppRegistry::registerApp(&APP_BESZEL);    // Beszel Client (3)
+  AppRegistry::registerApp(&APP_SETTINGS);  // Settings (4)
+
+  // Run App Setups (e.g. Beszel init)
+  AppRegistry::setupAll();
+
+  // Start HTTP server (will register routes from all apps)
   server_init();
 
-  // Initialize UI (OLED menu and button callbacks)
+  // Initialize UI
   ui_init();
-
-  // Initialize Beszel Service
-  BeszelService::getInstance().begin("https://beszel.francesco-bruno.com/");
-
-  // Show initial text (display module stores default text)
-  // epd_displayText(epd_getCurrentText(), GxEPD_RED, false);
 
   Serial.println("Setup complete");
 }
 
 void loop() {
-  // Handle incoming HTTP requests
+  // Handle HTTP requests
   server_handleClient();
 
-  // Poll buttons via the controls module
+  // Poll buttons
   controls_poll();
 
-  // Poll the UI (home clock / WiFi updates)
+  // Poll UI
   ui_poll();
+  
+  // Poll Apps (background tasks)
+  AppRegistry::pollAll();
 
-  // Run any pending background display jobs (non-blocking to callers)
+  // Run display jobs
   epd_runBackgroundJobs();
-
-  // Nothing else here; display updates happen inside request handlers.
 }

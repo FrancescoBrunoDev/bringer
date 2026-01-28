@@ -1,10 +1,12 @@
-#include "settings_internal.h"
-#include "../apps.h"
-#include "../../common/components.h"
-#include "../../ui_internal.h"
+#include "settings.h"
+#include "app/ui/common/components.h"
+#include "app/ui/ui_internal.h"
 #include "drivers/epaper/display.h"
 #include "drivers/oled/oled.h"
 #include <stdio.h>
+#include <Arduino.h>
+
+extern const App APP_SETTINGS;
 
 enum SettingsItem : uint8_t { SET_WIFI = 0, SET_EPAPER, SET_COUNT };
 static uint8_t s_index = 0;
@@ -63,14 +65,14 @@ static float view_get_progress(void) {
 }
 
 const View VIEW_SETTINGS_MAIN = {
-    "Settings",
-    view_render,
-    view_next,
-    view_prev,
-    view_select,
-    view_back,
-    NULL,
-    view_get_progress
+    .title = "Settings",
+    .render = view_render,
+    .onNext = view_next,
+    .onPrev = view_prev,
+    .onSelect = view_select,
+    .onBack = view_back,
+    .poll = NULL,
+    .getScrollProgress = view_get_progress
 };
 
 static void app_renderPreview(int16_t x_offset, int16_t y_offset) {
@@ -83,8 +85,10 @@ static void app_select(void) {
 }
 
 const App APP_SETTINGS = {
-    "Settings",
-    app_renderPreview,
-    app_select,
-    NULL
+    .name = "Settings",
+    .renderPreview = app_renderPreview,
+    .onSelect = app_select,
+    .setup = nullptr,
+    .registerRoutes = nullptr,
+    .poll = nullptr
 };

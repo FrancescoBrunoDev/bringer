@@ -7,7 +7,7 @@
 
 #include "ui.h"
 #include "ui_internal.h"
-#include "registry.h"
+#include "app/registry.h"
 #include "drivers/oled/oled.h"
 #include "app/controls/controls.h"
 #include "app/wifi/wifi.h"
@@ -41,8 +41,8 @@ static const View *s_lastView = NULL; // For exit transition
 // Internal rendering helper for carousel
 // Internal rendering helper for carousel
 static void ui_renderAppPreview(size_t index, int16_t x_offset, int16_t y_offset) {
-    const App** apps = registry_getApps();
-    size_t count = registry_getCount();
+    const auto& apps = AppRegistry::getApps();
+    size_t count = apps.size();
     if (index >= count) return;
     
     if (index == 0) {
@@ -153,7 +153,7 @@ void ui_next(void) {
     }
 
     // Carousel navigation
-    size_t count = registry_getCount();
+    size_t count = AppRegistry::getApps().size();
     if (count > 0) {
         s_prevAppIndex = s_appIndex;
         s_appIndex = (s_appIndex + 1) % count;
@@ -170,7 +170,7 @@ void ui_prev(void) {
     }
 
     // Carousel navigation
-    size_t count = registry_getCount();
+    size_t count = AppRegistry::getApps().size();
     if (count > 0) {
         s_prevAppIndex = s_appIndex;
         s_appIndex = (s_appIndex + count - 1) % count;
@@ -187,8 +187,8 @@ void ui_select(void) {
     }
 
     // Carousel: Open App
-    const App** apps = registry_getApps();
-    size_t count = registry_getCount();
+    const auto& apps = AppRegistry::getApps();
+    size_t count = apps.size();
     if (s_appIndex < count && apps[s_appIndex]->onSelect) {
         apps[s_appIndex]->onSelect();
     }
@@ -294,7 +294,7 @@ void ui_poll(void) {
       if (v && v->getScrollProgress) target_p = v->getScrollProgress();
   } else {
       // Carousel progress (Skip Home at index 0)
-      size_t count = registry_getCount();
+      size_t count = AppRegistry::getApps().size();
       if (count > 1) {
           if (s_appIndex == 0) target_p = 0.0f;
           else target_p = (float)s_appIndex / (float)(count - 1);
@@ -334,8 +334,8 @@ void ui_poll(void) {
   if (s_currentView) {
       if (s_currentView->poll) s_currentView->poll();
   } else {
-      const App** apps = registry_getApps();
-      size_t count = registry_getCount();
+      const auto& apps = AppRegistry::getApps();
+      size_t count = apps.size();
       if (s_appIndex < count && apps[s_appIndex]->poll) {
           apps[s_appIndex]->poll();
       }
