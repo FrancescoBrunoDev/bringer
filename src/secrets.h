@@ -40,4 +40,12 @@
 #define BESZEL_TOKEN ""
 #endif
 
+#ifndef HA_URL
+#define HA_URL "http://raspberrypi:8123/"
+#endif
+
+#ifndef HA_TOKEN
+#define HA_TOKEN ""
+#endif
+
 #endif // SECRETS_H

@@ -20,6 +20,8 @@ extern const App APP_BESZEL; // Defined in src/app/beszel/app.cpp
 extern const App APP_RSS;    // Defined in src/app/rss/app.cpp
 // Settings App
 extern const App APP_SETTINGS; // Defined in src/app/settings/app.cpp
+// Home Assistant Shopping List App
+extern const App APP_HA_LIST; // Defined in src/app/ha_list/app.cpp
 
 #include "app/controls/controls.h"
 #include "app/ui/ui.h"
@@ -49,7 +51,8 @@ void setup() {
   AppRegistry::registerApp(&APP_EPUB);      // Epub Reader (1)
   AppRegistry::registerApp(&APP_RSS);       // RSS Reader (2)
   AppRegistry::registerApp(&APP_BESZEL);    // Beszel Client (3)
-  AppRegistry::registerApp(&APP_SETTINGS);  // Settings (4)
+    AppRegistry::registerApp(&APP_SETTINGS);  // Settings (4)
+  AppRegistry::registerApp(&APP_HA_LIST);   // Home Assistant Shopping List (5)
 
   // Run App Setups (e.g. Beszel init)
   AppRegistry::setupAll();

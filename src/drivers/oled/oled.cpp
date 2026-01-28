@@ -375,6 +375,52 @@ void oled_drawBigText(const char *text, int16_t x_offset, int16_t y_offset, bool
     UNLOCK_OLED();
 }
 
+void oled_drawScrollingText(const char *text, int16_t x_offset, int16_t y_offset, bool update) {
+    LOCK_OLED();
+    if (!s_available) { UNLOCK_OLED(); return; }
+    
+    // Convert to uppercase
+    String upperText = String(text);
+    upperText.toUpperCase();
+    const char* text_ptr = upperText.c_str();
+
+    s_u8g2.setFont(u8g2_font_logisoso20_tf); 
+    int16_t w = s_u8g2.getUTF8Width(text_ptr);
+
+    if (w <= OLED_WIDTH - 4) {
+        // Fits!
+        int16_t h_asc = s_u8g2.getFontAscent();
+        int16_t x = (OLED_WIDTH - w) / 2 + x_offset;
+        int16_t y = (OLED_HEIGHT / 2) + (h_asc / 2) + y_offset;
+        if (y > -44 && y < OLED_HEIGHT + 44) {
+            s_u8g2.setCursor(x, y);
+            s_u8g2.print(text_ptr);
+        }
+    } else {
+        // Scroll Single Line BIG
+        // Calculate scroll offset
+        // Speed: 30px per second approx
+        uint32_t now = millis();
+        // Use a consistent time base (modulus)
+        // Scroll width = text width + screen width + gap
+        int16_t gap = 48;
+        int16_t total_scroll_w = w + OLED_WIDTH + gap;
+        int16_t offset = (now / 15) % total_scroll_w; // Higher divisor = slower. 8 was very fast?
+        
+        int16_t x = OLED_WIDTH - offset + x_offset;
+        int16_t y = (OLED_HEIGHT / 2) + (s_u8g2.getFontAscent() / 2) + y_offset;
+        
+        s_u8g2.setCursor(x, y);
+        s_u8g2.print(text_ptr);
+        
+        // Request persistent updates
+        s_needs_scroll_update = true;
+    }
+
+    if (update) s_oled.display();
+    UNLOCK_OLED();
+}
+
 void oled_drawHeader(const char *title, int16_t x_offset, int16_t y_offset) {
     LOCK_OLED();
     if (!s_available || !title) { UNLOCK_OLED(); return; }
