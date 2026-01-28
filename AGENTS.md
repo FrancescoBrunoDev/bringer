@@ -107,6 +107,7 @@ Style guidelines (applies to C++/Arduino code)
 - Imports & dependencies
   - Prefer PlatformIO `lib_deps` / `lib_extra_dirs` (already set in `platformio.ini`).
   - Avoid adding large runtime libraries without considering RAM/flash.
+  - Ensure libraries are compatible with the ESP32-C6 (RISC-V architecture). For example, use `miniz` for compression instead of `uzlib`.
 
 - Types & memory usage
   - Be mindful of RAM constraints on ESP32. Avoid large stack allocations and unbounded dynamic allocations.
@@ -142,6 +143,7 @@ Style guidelines (applies to C++/Arduino code)
 Agent rules (how automated agents should operate)
 -
 - Make non-destructive changes only. If you must modify hardware configs or secrets, ask before committing.
+- All hardware pin definitions MUST be centralized in `src/config.h`. Never hardcode pin numbers in source files.
 - When making software changes, consider if the server component needs to be updated accordingly. ALWAYS ask the user before modifying the server code or configuration.
 - Never commit binary build artefacts (PlatformIO creates `.pio` and `build` directories — keep these out of git). Respect existing `.gitignore`.
 - If creating or editing code:
