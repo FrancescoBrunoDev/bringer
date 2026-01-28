@@ -51,8 +51,8 @@ void setup() {
   AppRegistry::registerApp(&APP_EPUB);      // Epub Reader (1)
   AppRegistry::registerApp(&APP_RSS);       // RSS Reader (2)
   AppRegistry::registerApp(&APP_BESZEL);    // Beszel Client (3)
-    AppRegistry::registerApp(&APP_SETTINGS);  // Settings (4)
-  AppRegistry::registerApp(&APP_HA_LIST);   // Home Assistant Shopping List (5)
+  AppRegistry::registerApp(&APP_HA_LIST);   // Home Assistant Shopping List (4)
+  AppRegistry::registerApp(&APP_SETTINGS);  // Settings (5)
 
   // Run App Setups (e.g. Beszel init)
   AppRegistry::setupAll();
