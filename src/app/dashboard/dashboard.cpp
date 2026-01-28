@@ -181,6 +181,7 @@ static void dashboard_registerRoutes(void* serverPtr) {
     
     g_server->on("/", HTTP_GET, handleRoot);
     g_server->on("/app.js", HTTP_GET, [](){ serve_file_from_littlefs(g_server, "/app.js", "application/javascript"); });
+    g_server->on("/wallpapers.js", HTTP_GET, [](){ serve_file_from_littlefs(g_server, "/wallpapers.js", "application/javascript"); });
     g_server->on("/style.css", HTTP_GET, [](){ serve_file_from_littlefs(g_server, "/style.css", "text/css"); });
     
     g_server->on("/status", HTTP_GET, handleStatus);

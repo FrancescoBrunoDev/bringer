@@ -224,6 +224,7 @@
     var bmpHeight = 296;
     var isDrawing = false;
     var lastX = -1, lastY = -1;
+    var currentWallpaper = null; // Track selected wallpaper
 
     function initBitmapTab() {
       bmpCanvas = document.getElementById('bmpCanvas');
@@ -233,10 +234,18 @@
       // Controls
       var sel = document.getElementById('bmpTarget');
       if (sel) {
+        // Initial set based on current selection (browser might remember state)
+        if (sel.value === 'oled') { bmpWidth = 128; bmpHeight = 64; }
+        else if (sel.value === 'epd') { bmpWidth = 128; bmpHeight = 296; }
+
         sel.addEventListener('change', function () {
           if (sel.value === 'oled') { bmpWidth = 128; bmpHeight = 64; }
           else if (sel.value === 'epd') { bmpWidth = 128; bmpHeight = 296; }
           resizeCanvas();
+          // Re-apply current wallpaper if one is selected
+          if (currentWallpaper) {
+            applyWallpaper(currentWallpaper);
+          }
         });
       }
 
@@ -260,20 +269,35 @@
       var upload = document.getElementById('bmpUpload');
       if (upload) upload.addEventListener('change', handleImageUpload);
 
+
       // Gallery handlers
+      function applyWallpaper(preset) {
+        currentWallpaper = preset;
+        if (preset === 'noise') {
+          loadNoisePreset(bmpCtx, bmpWidth, bmpHeight);
+        } else if (preset === 'stripes') {
+          loadStripesPreset(bmpCtx, bmpWidth, bmpHeight);
+        } else if (preset === 'grid') {
+          loadGridPreset(bmpCtx, bmpWidth, bmpHeight);
+        } else if (preset === 'white') {
+          loadWhitePreset(bmpCtx, bmpWidth, bmpHeight);
+        } else if (preset === 'black') {
+          loadBlackPreset(bmpCtx, bmpWidth, bmpHeight);
+        }
+      }
+
       document.querySelectorAll('.gallery-item').forEach(function (item) {
         item.addEventListener('click', function () {
           var preset = this.getAttribute('data-preset');
-          if (preset === 'noise') {
-            loadNoisePreset();
-          } else {
-            alert('This wallpaper will be available soon!');
-          }
+          applyWallpaper(preset);
         });
       });
 
-      // Initialize noise thumbnail
+      // Initialize all thumbnails
       generateNoiseThumbnail();
+      generateStripeThumbnail();
+      generateGridThumbnail();
+      // White and black thumbnails are styled inline
 
       // Drawing Events
       // scale to visual size
@@ -546,56 +570,6 @@
       }
     }
 
-    function seededRandom(seed) {
-      // Simple seeded RNG
-      return function () {
-        seed = (seed * 9301 + 49297) % 233280;
-        return seed / 233280;
-      };
-    }
-
-    function generateNoiseThumbnail() {
-      // Generate noise preview for thumbnail
-      var thumb = document.getElementById('thumb-noise');
-      if (!thumb) return;
-
-      var canvas = document.createElement('canvas');
-      // Generate at full resolution for crisp display
-      canvas.width = 128;
-      canvas.height = 296;
-      var ctx = canvas.getContext('2d');
-      var imgData = ctx.createImageData(128, 296);
-
-      var rng = seededRandom(42);
-      for (var i = 0; i < imgData.data.length; i += 4) {
-        var val = rng() > 0.5 ? 255 : 0;
-        imgData.data[i] = val;
-        imgData.data[i + 1] = val;
-        imgData.data[i + 2] = val;
-        imgData.data[i + 3] = 255;
-      }
-      ctx.putImageData(imgData, 0, 0);
-
-      thumb.style.backgroundImage = 'url(' + canvas.toDataURL() + ')';
-      thumb.style.backgroundSize = 'contain';
-      thumb.style.backgroundRepeat = 'no-repeat';
-      thumb.style.backgroundPosition = 'center';
-      thumb.textContent = '';
-    }
-
-    function loadNoisePreset() {
-      // Generate noise directly on main canvas with fixed seed
-      var imgData = bmpCtx.createImageData(bmpWidth, bmpHeight);
-      var rng = seededRandom(42);
-      for (var i = 0; i < imgData.data.length; i += 4) {
-        var val = rng() > 0.5 ? 255 : 0;
-        imgData.data[i] = val;
-        imgData.data[i + 1] = val;
-        imgData.data[i + 2] = val;
-        imgData.data[i + 3] = 255;
-      }
-      bmpCtx.putImageData(imgData, 0, 0);
-    }
 
 
     // Hook buttons
