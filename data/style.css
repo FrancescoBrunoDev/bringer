@@ -38,7 +38,8 @@ h3 {
 
 .tab-link {
   background: none;
-  border: 2px solid transparent;
+  box-shadow: none;
+  border: none;
   border-bottom: none;
   cursor: pointer;
   padding: 10px 20px;
@@ -47,6 +48,7 @@ h3 {
   text-transform: uppercase;
   color: var(--text-color);
   outline: none;
+  margin-bottom: unset;
 }
 
 .tab-link:hover {
@@ -56,10 +58,9 @@ h3 {
 .tab-link.active {
   border-color: var(--border-color);
   background: var(--bg-color);
-  margin-bottom: -2px;
-  /* Overlap border */
-  border-bottom: 2px solid var(--bg-color);
   font-weight: bold;
+  border: 2px solid var(--border-color);
+  border-bottom: none;
 }
 
 /* Tab Content */
@@ -86,9 +87,9 @@ h3 {
 button {
   font-family: inherit;
   font-size: 1rem;
-  background: white;
-  color: black;
-  border: 2px solid black;
+  background: var(--bg-color);
+  color: var(--text-color);
+  border: 2px solid var(--border-color);
   padding: 5px 15px;
   cursor: pointer;
   text-transform: uppercase;
@@ -115,13 +116,13 @@ button:active {
 
 .menu-item.active {
   border: 1px dashed black;
-  background: #eee;
+  background: var(--active-bg);
 }
 
 .epd-busy {
   margin-top: 20px;
   padding: 5px;
-  border: 1px dashed black;
+  border: 1px dashed var(--border-color);
   display: inline-block;
 }
 
@@ -130,8 +131,8 @@ button:active {
 .bitmap-controls {
   margin-bottom: 15px;
   padding: 10px;
-  background: #f0f0f0;
-  border: 1px solid #ccc;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -141,16 +142,15 @@ button:active {
 .bitmap-upload {
   margin-bottom: 15px;
   padding: 10px;
-  border: 1px dashed #999;
+  border: 1px dashed var(--border-color);
 }
 
 .bitmap-gallery {
   margin-bottom: 20px;
   margin-top: 20px;
   padding: 15px;
-  background: #f9f9f9;
-  border: 1px solid #ddd;
-  max-width: 400px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
 }
 
 .bitmap-gallery h4 {
@@ -162,22 +162,25 @@ button:active {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 15px;
+  overflow-x: auto;
+  display: flex;
 }
 
 .gallery-item {
   text-align: center;
   cursor: pointer;
+  width: 60px;
 }
 
 .gallery-item:hover .gallery-thumb {
-  border-color: black;
+  border-color: var(--border-color);
 }
 
 .gallery-thumb {
   width: 100%;
   aspect-ratio: 128 / 296;
-  border: 2px solid #ccc;
-  background: #fff;
+  border: 2px solid var(--border-color);
+  background: var(--bg-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -195,20 +198,18 @@ button:active {
 
 .canvas-container {
   overflow: auto;
-  border: 2px solid #333;
   padding: 20px;
-  background: #888;
+  background: var(--bg-color);
   /* contrast for canvas */
-  min-height: 200px;
   display: flex;
   justify-content: center;
 }
 
 #bmpCanvas {
-  background: white;
+  background: var(--bg-color);
   image-rendering: pixelated;
   /* sharp pixels */
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--border-color);
   cursor: crosshair;
 }
 
