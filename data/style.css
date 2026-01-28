@@ -124,6 +124,98 @@ button:active {
   display: inline-block;
 }
 
-.hidden {
-  display: none;
+
+/* Bitmap Tab */
+.bitmap-controls {
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.bitmap-upload {
+  margin-bottom: 15px;
+  padding: 10px;
+  border: 1px dashed #999;
+}
+
+.bitmap-gallery {
+  margin-bottom: 20px;
+  margin-top: 20px;
+  padding: 15px;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  max-width: 400px;
+}
+
+.bitmap-gallery h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.gallery-item {
+  text-align: center;
+  cursor: pointer;
+}
+
+.gallery-item:hover .gallery-thumb {
+  border-color: black;
+}
+
+.gallery-thumb {
+  width: 100%;
+  aspect-ratio: 128 / 296;
+  border: 2px solid #ccc;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 5px;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  image-rendering: pixelated;
+  /* Keep noise pattern crisp */
+}
+
+.gallery-item span {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.canvas-container {
+  overflow: auto;
+  border: 2px solid #333;
+  padding: 20px;
+  background: #888;
+  /* contrast for canvas */
+  min-height: 200px;
+  display: flex;
+  justify-content: center;
+}
+
+#bmpCanvas {
+  background: white;
+  image-rendering: pixelated;
+  /* sharp pixels */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  cursor: crosshair;
+}
+
+#bmpOutput {
+  width: 100%;
+  margin-top: 15px;
+  font-family: monospace;
+  font-size: 0.9rem;
+  white-space: pre;
+  overflow-x: auto;
 }

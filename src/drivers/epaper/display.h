@@ -44,8 +44,11 @@ void epd_forceClear(void);
 // display is not currently busy. Returns true if the job was scheduled.
 bool epd_forceClear_async(void);
 
-// Helper to display the date on the E-Paper (e.g. at startup)
+// Helper to display the date on theE-Paper (e.g. at startup)
 void epd_displayDate(time_t now);
+
+// Display wallpaper with date overlay at bottom (DD.MM format)
+void epd_displayWallpaper(time_t now);
 
 // Simple full white clear without the recovery black/white cycles
 void epd_clear(void);

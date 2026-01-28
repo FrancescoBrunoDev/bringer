@@ -14,6 +14,7 @@
 #include <SPI.h>
 #include <GxEPD2_3C.h>
 #include <U8g2_for_Adafruit_GFX.h>
+#include <LittleFS.h>
 
 #include <algorithm>
 #include <freertos/FreeRTOS.h>
@@ -94,16 +95,24 @@ static void epd_worker_task(void *pvParameters) {
           _exec_clear(true);
           break;
         case JOB_DATE:
-          // Local conversion and execute text
-          struct tm tm;
-          localtime_r(&job->time, &tm);
-          char buf[64];
-          strftime(buf, sizeof(buf), "%d/%m/%Y", &tm);
+          // Display date in DD.MM format at bottom-right (same as wallpaper overlay)
           {
-            epd_job_t textJob = *job;
-            textJob.text = String(buf);
-            textJob.color = GxEPD_RED;
-            _exec_displayText(textJob);
+            struct tm tm;
+            localtime_r(&job->time, &tm);
+            char buf[16];
+            snprintf(buf, sizeof(buf), "%02d.%02d", tm.tm_mday, tm.tm_mon + 1);
+            
+            // Create image job with date text overlay (empty image, just date)
+            epd_job_t dateJob = *job;
+            dateJob.type = JOB_IMAGE;
+            dateJob.width = display.width();
+            dateJob.height = display.height();
+            dateJob.data.clear(); // Empty image data
+            dateJob.format = "empty"; // Special marker for empty image
+            dateJob.imageColor = "black";
+            dateJob.forceFull = true;
+            dateJob.text = String(buf);
+            _exec_drawImage(dateJob);
           }
           break;
         case JOB_HEADER:
@@ -192,6 +201,67 @@ void epd_displayDate(time_t now) {
   epd_job_t *job = new epd_job_t();
   job->type = JOB_DATE;
   job->time = now;
+  
+  _queueJob(job);
+}
+
+void epd_displayWallpaper(time_t now) {
+  int width = 128;
+  int height = 296;
+  std::vector<uint8_t> data;
+  
+  // Check if custom wallpaper exists
+  if (LittleFS.exists("/wallpaper.bin")) {
+    File f = LittleFS.open("/wallpaper.bin", "r");
+    if (f) {
+      // Read header
+      uint8_t header[4];
+      if (f.read(header, 4) == 4) {
+        width = (header[0] << 8) | header[1];
+        height = (header[2] << 8) | header[3];
+        
+        // Read bitmap data
+        size_t dataSize = f.size() - 4;
+        data.resize(dataSize);
+        if (f.read(data.data(), dataSize) == dataSize) {
+          f.close();
+          goto display_wallpaper; // Successfully loaded custom wallpaper
+        }
+      }
+      f.close();
+    }
+  }
+  
+  // Generate default noisy wallpaper
+  {
+    int bytesPerRow = (width + 7) / 8;
+    size_t totalBytes = bytesPerRow * height;
+    data.resize(totalBytes);
+    
+    // Generate random noise pattern with fixed seed for consistency
+    randomSeed(42);
+    for (size_t i = 0; i < totalBytes; i++) {
+      data[i] = random(256);
+    }
+  }
+  
+display_wallpaper:
+  // Prepare date string in DD.MM format
+  struct tm tm;
+  localtime_r(&now, &tm);
+  char dateBuf[16];
+  snprintf(dateBuf, sizeof(dateBuf), "%02d.%02d", tm.tm_mday, tm.tm_mon + 1);
+  
+  // Queue a job to draw wallpaper + date
+  epd_job_t *job = new epd_job_t();
+  job->type = JOB_IMAGE;
+  job->width = width;
+  job->height = height;
+  job->data = data;
+  job->format = "bw";
+  job->imageColor = "black";
+  job->forceFull = true;
+  job->text = String(dateBuf); // Store date in text field for overlay
   
   _queueJob(job);
 }
@@ -377,8 +447,32 @@ static void _exec_drawImage(const epd_job_t &job) {
     if (usedPartial) display.fillRect(rx, ry, job.width, job.height, GxEPD_WHITE);
     else display.fillScreen(GxEPD_WHITE);
 
-    if (job.format == "bw") _exec_image_bw(job.width, job.height, job.data, rx, ry, job.imageColor.c_str());
-    else _exec_image_3c(job.width, job.height, job.data, rx, ry);
+    // Only draw image if there's actual image data
+    if (job.format != "empty") {
+      if (job.format == "bw") _exec_image_bw(job.width, job.height, job.data, rx, ry, job.imageColor.c_str());
+      else _exec_image_3c(job.width, job.height, job.data, rx, ry);
+    }
+    
+    // If text is present (date overlay for wallpaper), draw it at the bottom
+    if (job.text.length() > 0) {
+      s_u8g2_epd.setFont(u8g2_font_profont17_tr);
+      s_u8g2_epd.setForegroundColor(GxEPD_BLACK);
+      s_u8g2_epd.setBackgroundColor(GxEPD_WHITE);
+      
+      int16_t tw = s_u8g2_epd.getUTF8Width(job.text.c_str());
+      int16_t th = s_u8g2_epd.getFontAscent() - s_u8g2_epd.getFontDescent();
+      
+      // Bottom-right position with small margin
+      int16_t text_x = display.width() - tw - 4;
+      int16_t text_y = display.height() - 4;
+      
+      // Draw white background box for date
+      display.fillRect(text_x - 2, text_y - th - 2, tw + 4, th + 4, GxEPD_WHITE);
+      
+      // Draw text
+      s_u8g2_epd.setCursor(text_x, text_y);
+      s_u8g2_epd.print(job.text);
+    }
   } while (display.nextPage());
 
   if (oled_isAvailable()) oled_showStatus("Done");

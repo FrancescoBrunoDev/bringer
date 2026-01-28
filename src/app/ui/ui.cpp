@@ -249,11 +249,11 @@ void ui_poll(void) {
     s_timeConfigured = true;
   }
 
-  // Once time is valid, show date on E-Paper (once)
+  // Once time is valid, show wallpaper (with date) or just date on E-Paper (once)
   if (s_timeConfigured && !s_initialDateShown) {
       time_t now = time(nullptr);
       if (now > 1600000000) {
-          epd_displayDate(now);
+          epd_displayWallpaper(now);
           s_initialDateShown = true;
       }
   }

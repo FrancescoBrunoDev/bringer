@@ -196,6 +196,66 @@ static void dashboard_registerRoutes(void* serverPtr) {
     g_server->on("/clear", HTTP_POST, handleClear);
     g_server->on("/clear", HTTP_GET, handleClear);
     
+    // Wallpaper endpoints
+    g_server->on("/api/wallpaper/upload", HTTP_POST, [](){
+        if(!g_server) return;
+        String body = g_server->arg("plain");
+        if (body.length() == 0) {
+            send_error(g_server, 400, "empty body");
+            return;
+        }
+        DynamicJsonDocument doc(body.length() + 1024);
+        auto err = deserializeJson(doc, body);
+        if (err) {
+            send_error(g_server, 400, "invalid json");
+            return;
+        }
+        int width = doc["width"] | 0;
+        int height = doc["height"] | 0;
+        const char* data_b64 = doc["data"] | "";
+        
+        if (width <= 0 || height <= 0 || strlen(data_b64) == 0) {
+            send_error(g_server, 400, "missing fields");
+            return;
+        }
+        
+        std::vector<uint8_t> img;
+        if (!base64_decode(String(data_b64), img)) {
+            logger_log("Wallpaper: base64 error");
+            send_error(g_server, 400, "base64 decode failed");
+            return;
+        }
+        
+        // Save to LittleFS
+        File f = LittleFS.open("/wallpaper.bin", "w");
+        if (!f) {
+            logger_log("Wallpaper: failed to open file");
+            send_error(g_server, 500, "failed to save");
+            return;
+        }
+        
+        // Write header: width (2 bytes), height (2 bytes), then data
+        uint8_t header[4];
+        header[0] = (width >> 8) & 0xFF;
+        header[1] = width & 0xFF;
+        header[2] = (height >> 8) & 0xFF;
+        header[3] = height & 0xFF;
+        f.write(header, 4);
+        f.write(img.data(), img.size());
+        f.close();
+        
+        logger_log("Wallpaper saved: %dx%d", width, height);
+        send_success(g_server, "wallpaper_saved");
+    });
+    
+    g_server->on("/api/wallpaper/delete", HTTP_POST, [](){
+        if (LittleFS.exists("/wallpaper.bin")) {
+            LittleFS.remove("/wallpaper.bin");
+            logger_log("Wallpaper deleted");
+        }
+        if(g_server) send_success(g_server, "wallpaper_deleted");
+    });
+    
     g_server->on("/diag", HTTP_GET, [](){
         StaticJsonDocument<128> doc;
         doc["prevPin"] = controls_getPrevPin();

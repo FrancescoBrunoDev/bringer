@@ -4,16 +4,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Device Server</title>
+  <title>Bringer</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 
 <body>
-  <h2>Device Server</h2>
+  <h2>Bringer</h2>
 
   <div class="tabs" id="mainTabs">
     <button class="tab-link active" data-tab="Home">Home</button>
-
+    <button class="tab-link" data-tab="Bitmap">Bitmap</button>
     <button class="tab-link" data-tab="Epub">Epub</button>
     <button class="tab-link" data-tab="Settings">Settings</button>
     <button class="tab-link" data-tab="Logs">Logs</button>
@@ -27,6 +27,56 @@
 
   <!-- APPS TAB -->
 
+
+  <!-- BITMAP TAB -->
+  <div id="Bitmap" class="tab-content">
+    <h3>Bitmap Creator</h3>
+
+    <div class="bitmap-controls">
+      <label>Target:
+        <select id="bmpTarget">
+          <option value="oled">OLED (128x64)</option>
+          <option value="epd" selected>E-Paper (128x296)</option>
+        </select>
+      </label>
+      <button id="btnBmpClear">Clear</button>
+      <button id="btnBmpInvert">Invert</button>
+      <button id="btnBmpExport">Export Code</button>
+      <button id="btnBmpSetWallpaper">Set as Wallpaper</button>
+    </div>
+
+    <div class="bitmap-upload">
+      <label>Upload Image (auto-dither): <input type="file" id="bmpUpload" accept="image/*"></label>
+    </div>
+
+    <div class="canvas-container">
+      <canvas id="bmpCanvas"></canvas>
+    </div>
+
+    <div class="bitmap-gallery">
+      <h4>Preset Wallpapers</h4>
+      <div class="gallery-grid">
+        <div class="gallery-item" data-preset="noise">
+          <div class="gallery-thumb" id="thumb-noise">Noise</div>
+          <span>Noisy</span>
+        </div>
+        <div class="gallery-item" data-preset="placeholder1">
+          <div class="gallery-thumb">
+            <span style="color:#999">Coming Soon</span>
+          </div>
+          <span>Pattern 2</span>
+        </div>
+        <div class="gallery-item" data-preset="placeholder2">
+          <div class="gallery-thumb">
+            <span style="color:#999">Coming Soon</span>
+          </div>
+          <span>Pattern 3</span>
+        </div>
+      </div>
+    </div>
+
+    <textarea id="bmpOutput" rows="10" readonly placeholder="Exported C array will appear here..."></textarea>
+  </div>
 
   <!-- EPUB TAB -->
   <div id="Epub" class="tab-content">
