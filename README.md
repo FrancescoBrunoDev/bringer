@@ -91,13 +91,13 @@ Note: the OLED is reserved for the menu/home UI by default — status/progress m
 2. Build & upload with PlatformIO (example):
 ```bash
 cd bringer/examples/esp32c6-epaper-api
-pio run -e esp32c6-devkitm-1 -t upload --upload-port /dev/ttyACM0
+pio run -e seeed_xiao_esp32c6 -t upload --upload-port /dev/ttyACM0
 ```
 (Replace `/dev/ttyACM0` with your device. Use `sudo` if necessary, or fix udev permissions.)
 
 3. Open serial monitor to follow progress and debug:
 ```bash
-pio device monitor -e esp32c6-devkitm-1 --port /dev/ttyACM0 -b 115200
+pio device monitor -e seeed_xiao_esp32c6 --port /dev/ttyACM0 -b 115200
 ```
 
 If Wi‑Fi connection fails, the ESP will start an AP (SSID `EPaper-AP` by default). Connect to it and use the AP IP (usually `192.168.4.1`).

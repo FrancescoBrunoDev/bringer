@@ -13,7 +13,7 @@
       POST /clear   -> clears the display (full white)
 
   Note: The web UI is served only from LittleFS (files placed in the repository `data/` directory
-  and uploaded to the device with `pio run -e esp32c6-devkitm-1 -t uploadfs`). There is no embedded
+  and uploaded to the device with `pio run -e seeed_xiao_esp32c6 -t uploadfs`). There is no embedded
   HTML/CSS/JS fallback in the firmware — if the files are missing requests will return 404.
 */
 
