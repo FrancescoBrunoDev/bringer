@@ -12,7 +12,7 @@
 #include "drivers/oled/oled.h"
 
 #include <SPI.h>
-#include <GxEPD2_3C.h>
+#include <GxEPD2_BW.h>
 #include <U8g2_for_Adafruit_GFX.h>
 #include <LittleFS.h>
 
@@ -50,12 +50,12 @@ struct epd_job_t {
 };
 
 // --- Hardware ---
-static GxEPD2_3C<GxEPD2_290_C90c, GxEPD2_290_C90c::HEIGHT> display(GxEPD2_290_C90c(PIN_CS, PIN_DC, PIN_RST, PIN_BUSY));
+static GxEPD2_BW<GxEPD2_290_T94_V2, GxEPD2_290_T94_V2::HEIGHT> display(GxEPD2_290_T94_V2(PIN_CS, PIN_DC, PIN_RST, PIN_BUSY));
 static U8G2_FOR_ADAFRUIT_GFX s_u8g2_epd;
 
 // --- State ---
 static String g_currentText = "Hello API";
-static uint16_t g_currentColor = GxEPD_RED;
+static uint16_t g_currentColor = GxEPD_BLACK;
 static bool g_partialEnabled = ENABLE_PARTIAL_UPDATE;
 static volatile bool s_isBlockedByTask = false;
 
@@ -145,7 +145,7 @@ void epd_init() {
   // Init U8g2 helper
   s_u8g2_epd.begin(display);
   s_u8g2_epd.setFont(u8g2_font_profont29_tr);
-  s_u8g2_epd.setForegroundColor(GxEPD_RED);
+  s_u8g2_epd.setForegroundColor(GxEPD_BLACK);
   s_u8g2_epd.setBackgroundColor(GxEPD_WHITE);
 
   // Sync state mutex
@@ -398,7 +398,7 @@ static void _exec_displayHeader(const epd_job_t &job) {
 
 static void _exec_image_bw(int width, int height, const std::vector<uint8_t> &img, int rx, int ry, const char *color) {
   int bytesPerRow = (width + 7) / 8;
-  uint16_t drawColor = (strcmp(color, "black") == 0) ? GxEPD_BLACK : GxEPD_RED;
+  uint16_t drawColor = GxEPD_BLACK;
 
   for (int y = 0; y < height; ++y) {
     int row = y * bytesPerRow;
@@ -411,22 +411,8 @@ static void _exec_image_bw(int width, int height, const std::vector<uint8_t> &im
   }
 }
 
-static void _exec_image_3c(int width, int height, const std::vector<uint8_t> &img, int rx, int ry) {
-  int bytesPerRow = (width + 7) / 8;
-  int bytesPerPlane = bytesPerRow * height;
-  const uint8_t *blackPlane = img.data();
-  const uint8_t *redPlane = img.data() + bytesPerPlane;
+// 3c image handling removed as we are now BW only
 
-  for (int y = 0; y < height; ++y) {
-    int row = y * bytesPerRow;
-    for (int x = 0; x < width; ++x) {
-      int byteIndex = row + (x >> 3);
-      int bit = 7 - (x & 7);
-      if ((redPlane[byteIndex] >> bit) & 1) display.drawPixel(rx + x, ry + y, GxEPD_RED);
-      else if ((blackPlane[byteIndex] >> bit) & 1) display.drawPixel(rx + x, ry + y, GxEPD_BLACK);
-    }
-  }
-}
 
 static void _exec_drawImage(const epd_job_t &job) {
   if (oled_isAvailable()) oled_showStatus("Loading...");
@@ -449,8 +435,8 @@ static void _exec_drawImage(const epd_job_t &job) {
 
     // Only draw image if there's actual image data
     if (job.format != "empty") {
-      if (job.format == "bw") _exec_image_bw(job.width, job.height, job.data, rx, ry, job.imageColor.c_str());
-      else _exec_image_3c(job.width, job.height, job.data, rx, ry);
+       // Always use BW handler, ignoring format/color args for now since we are BW only
+       _exec_image_bw(job.width, job.height, job.data, rx, ry, "black");
     }
     
     // If text is present (date overlay for wallpaper), draw it at the bottom
@@ -564,7 +550,7 @@ static void _exec_displayPage(const epd_job_t &job) {
                         display.drawRect(barX, barY, barW, barH, GxEPD_BLACK);
                         int16_t fillW = (int16_t)((barW - 4) * (comp.value / 100.0f));
                         if (fillW > 0) {
-                            display.fillRect(barX + 2, barY + 2, fillW, barH - 4, comp.color == 0 ? GxEPD_RED : comp.color);
+                            display.fillRect(barX + 2, barY + 2, fillW, barH - 4, comp.color == 0 ? GxEPD_BLACK : comp.color);
                         }
                         
                         // Percentage text

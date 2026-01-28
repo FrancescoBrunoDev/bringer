@@ -14,8 +14,8 @@
  *  - Image bitplanes are expected in row-major order, MSB-first per byte.
  *  - Supported image formats:
  *      - "bw" : single plane (black/white). bytes = ceil(width*height/8)
- *      - "3c" : two planes concatenated: [black_plane][red_plane]
- *               (each plane width*height/8 bytes)
+ *      - "3c" : DEPRECATED/IGNORED - treated as BW or will fail.
+ *               originally: two planes concatenated: [black_plane][red_plane]
  */
 
 #include <Arduino.h>
@@ -73,15 +73,15 @@ void epd_runBackgroundJobs(void);
 // Draw an image from packed bitplane data.
 // - `width`, `height` : image dimensions in pixels (must fit within display)
 // - `data` : packed bytes (see comment above for per-format layout)
-// - `format` : "bw" or "3c" (default "3c")
-// - `color` : for "bw" format, choose "red" or "black" (default "red")
+// - `format` : "bw" (default "bw")
+// - `color` : for "bw" format, "black" (default "black")
 // - `forceFull` : force a full update (recommended for artifact-prone panels)
 // Returns true on success, false on invalid inputs (wrong size/format).
 bool epd_drawImageFromBitplanes(int width,
                                 int height,
                                 const std::vector<uint8_t> &data,
-                                const char *format = "3c",
-                                const char *color = "red",
+                                const char *format = "bw",
+                                const char *color = "black",
                                 bool forceFull = false);
 
 // Retrieve the last set text (for status endpoints)

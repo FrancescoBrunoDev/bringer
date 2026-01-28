@@ -5,7 +5,7 @@
 #include "drivers/oled/oled.h"
 #include "drivers/epaper/display.h"
 #include "drivers/epaper/layout.h"
-#include <GxEPD2_3C.h>
+#include <GxEPD2_BW.h>
 #include <Arduino.h>
 
 extern const App APP_BESZEL;
@@ -64,13 +64,13 @@ static void update_epaper(const BeszelSystem& sys) {
     
     // System Info Header
     page.components.push_back({EPD_COMP_HEADER, sys.name, "", 0, GxEPD_BLACK});
-    page.components.push_back({EPD_COMP_ROW, "Status", sys.status, 0, sys.status == "up" ? GxEPD_BLACK : GxEPD_RED});
+    page.components.push_back({EPD_COMP_ROW, "Status", sys.status, 0, sys.status == "up" ? GxEPD_BLACK : GxEPD_BLACK});
     page.components.push_back({EPD_COMP_SEPARATOR, "", "", 0, 0});
     
     // Usage Stats
-    page.components.push_back({EPD_COMP_PROGRESS, "CPU", String(sys.cpu, 1) + "%", sys.cpu, sys.cpu > 80 ? GxEPD_RED : GxEPD_BLACK});
-    page.components.push_back({EPD_COMP_PROGRESS, "Memory", String(sys.mem, 1) + "%", sys.mem, sys.mem > 85 ? GxEPD_RED : GxEPD_BLACK});
-    page.components.push_back({EPD_COMP_PROGRESS, "Disk", String(sys.disk, 1) + "%", sys.disk, sys.disk > 90 ? GxEPD_RED : GxEPD_BLACK});
+    page.components.push_back({EPD_COMP_PROGRESS, "CPU", String(sys.cpu, 1) + "%", sys.cpu, sys.cpu > 80 ? GxEPD_BLACK : GxEPD_BLACK});
+    page.components.push_back({EPD_COMP_PROGRESS, "Memory", String(sys.mem, 1) + "%", sys.mem, sys.mem > 85 ? GxEPD_BLACK : GxEPD_BLACK});
+    page.components.push_back({EPD_COMP_PROGRESS, "Disk", String(sys.disk, 1) + "%", sys.disk, sys.disk > 90 ? GxEPD_BLACK : GxEPD_BLACK});
     
     // Network Info
     page.components.push_back({EPD_COMP_SEPARATOR, "", "", 0, 0});

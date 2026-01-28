@@ -8,7 +8,7 @@
 #include <WebServer.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
-#include <GxEPD2_3C.h>
+#include <GxEPD2_BW.h>
 
 // --- Static Helpers ---
 
@@ -84,7 +84,7 @@ static void handleSetText() {
   if (body.length() == 0 && g_server->hasArg("text")) {
     String text = g_server->arg("text");
     String color = g_server->arg("color");
-    uint16_t col = (color == "black") ? GxEPD_BLACK : GxEPD_RED;
+    uint16_t col = GxEPD_BLACK;
     logger_log("SetText (form): %s", text.c_str());
     epd_displayText(text, col, false);
     send_success(g_server);
@@ -99,11 +99,10 @@ static void handleSetText() {
     return;
   }
   const char* txt = doc["text"] | "";
-  const char* color = doc["color"] | "red";
+  const char* color = doc["color"] | "black";
   bool forceFull = doc["forceFull"] | false;
 
-  uint16_t col = GxEPD_RED;
-  if (strcmp(color, "black") == 0) col = GxEPD_BLACK;
+  uint16_t col = GxEPD_BLACK;
 
   logger_log("SetText: %s (%s)", txt, color);
   epd_displayText(String(txt), col, forceFull);
@@ -131,8 +130,8 @@ static void handleImageUpload() {
   int width = doc["width"] | 0;
   int height = doc["height"] | 0;
   const char* data_b64 = doc["data"] | "";
-  const char* format = doc["format"] | "3c";
-  const char* color = doc["color"] | "red";
+  const char* format = doc["format"] | "bw";
+  const char* color = doc["color"] | "black";
   bool forceFull = doc["forceFull"] | false;
 
   if (width <= 0 || height <= 0 || strlen(data_b64) == 0) {
