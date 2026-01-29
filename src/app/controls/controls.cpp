@@ -86,21 +86,23 @@ void controls_init(uint8_t prevPin, uint8_t nextPin, uint8_t confirmPin, unsigne
   // Initial readings for all buttons
   s_prevBtn.raw = digitalRead(s_prevBtn.pin);
   s_prevBtn.stable = s_prevBtn.raw;
-  s_prevBtn.idleState = s_prevBtn.stable;
+  // Enforce idle state as HIGH for INPUT_PULLUP (Active Low)
+  // This avoids issues if the button is held during boot or pin floats low temporarily
+  s_prevBtn.idleState = HIGH; 
   s_prevBtn.lastChange = millis();
   s_prevBtn.pressStart = 0;
   s_prevBtn.longFired = false;
 
   s_nextBtn.raw = digitalRead(s_nextBtn.pin);
   s_nextBtn.stable = s_nextBtn.raw;
-  s_nextBtn.idleState = s_nextBtn.stable;
+  s_nextBtn.idleState = HIGH; 
   s_nextBtn.lastChange = millis();
   s_nextBtn.pressStart = 0;
   s_nextBtn.longFired = false;
 
   s_confirmBtn.raw = digitalRead(s_confirmBtn.pin);
   s_confirmBtn.stable = s_confirmBtn.raw;
-  s_confirmBtn.idleState = s_confirmBtn.stable;
+  s_confirmBtn.idleState = HIGH; 
   s_confirmBtn.lastChange = millis();
   s_confirmBtn.pressStart = 0;
   s_confirmBtn.longFired = false;

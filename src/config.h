@@ -11,6 +11,7 @@
 
 #include <Arduino.h>
 
+#ifdef BOARD_SEEED_XIAO_ESP32C6
 // SPI pins (explicitly set to ensure consistent SPI.begin(...) usage)
 // Seeed Studio XIAO ESP32C6 Pinout
 constexpr uint8_t PIN_SCK  = 19; // D8
@@ -32,6 +33,30 @@ constexpr uint8_t OLED_I2C_ADDR = 0x3C;
 constexpr uint8_t PIN_BUTTON_PREV    = 0;  // D0
 constexpr uint8_t PIN_BUTTON_NEXT    = 1;  // D1
 constexpr uint8_t PIN_BUTTON_CONFIRM = 20; // D9 (Repurposed MISO)
+#elif defined(BOARD_SEEED_XIAO_ESP32S3)
+// Seeed Studio XIAO ESP32S3 Pinout
+constexpr uint8_t PIN_SCK  = D8;
+constexpr uint8_t PIN_MISO = 255; // Not used (Repurposed for Button Confirm)
+constexpr uint8_t PIN_MOSI = D10;
+
+// Display control
+constexpr uint8_t PIN_CS   = D6;
+constexpr uint8_t PIN_BUSY = D3;
+constexpr uint8_t PIN_RST  = D2;
+constexpr uint8_t PIN_DC   = D7;
+
+// OLED Display
+constexpr uint8_t PIN_OLED_SDA = D4;
+constexpr uint8_t PIN_OLED_SCL = D5;
+constexpr uint8_t OLED_I2C_ADDR = 0x3C;
+
+// Input Controls
+constexpr uint8_t PIN_BUTTON_PREV    = D0;
+constexpr uint8_t PIN_BUTTON_NEXT    = D1;
+constexpr uint8_t PIN_BUTTON_CONFIRM = D9; // Repurposed MISO
+#else
+#error "Board not supported or not defined!"
+#endif
 
 // HTTP server configuration
 constexpr uint16_t WEB_SERVER_PORT = 80;
