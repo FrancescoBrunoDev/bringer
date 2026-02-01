@@ -46,8 +46,8 @@ constexpr uint8_t PIN_RST  = D2;
 constexpr uint8_t PIN_DC   = D7;
 
 // OLED Display
-constexpr uint8_t PIN_OLED_SDA = D4;
-constexpr uint8_t PIN_OLED_SCL = D5;
+constexpr uint8_t PIN_OLED_SDA = D5;
+constexpr uint8_t PIN_OLED_SCL = D4;
 constexpr uint8_t OLED_I2C_ADDR = 0x3C;
 
 // Input Controls
